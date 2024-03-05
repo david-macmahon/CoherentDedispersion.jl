@@ -17,7 +17,7 @@ function chirp(k::Integer, l::Integer, dm, fhi, foff, Tms, N)
     # Compute fkl, the frequency for (k,l)
     fkl = fhil + dfk
     # Compute dispersion delay from fhil to fkl
-    dd = dispdelay(dm, fkl, fhil)
+    dd = dispdelay(fkl, fhil, dm)
     # Return chirp phase factor
     cispi(-2 * fkl * dd / Tms)
 end
@@ -70,7 +70,7 @@ function _coddtask(pqin, pqout; workbufs, overlap_granularity=4)
             fhi = (header[:obsfreq] + abs(header[:obsbw])/2) / 1e3
             foff = header[:chan_bw] / 1e3
             Tms = header[:tbin] * ntime * 1e3
-            maxdd = dispdelay(dm, fhi-nchan*abs(foff), fhi-(nchan-1)*abs(foff))
+            maxdd = dispdelay(fhi-nchan*abs(foff), fhi-(nchan-1)*abs(foff), dm)
             overlap = cld(maxdd/1e3, header[:tbin]) |> Int
             # Round overlap up to next multiple of overlap_granularity
             overlap = overlap_granularity * cld(overlap, overlap_granularity)
