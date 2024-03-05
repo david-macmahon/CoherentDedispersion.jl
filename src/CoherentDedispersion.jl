@@ -2,7 +2,19 @@ module CoherentDedispersion
 
 using FFTW, LinearAlgebra, Blio, PoolQueues
 
-export KDM, dispdelay
+export KDM, KDM32, dispdelay
+
+"""
+`KDM` is the *dispersion constant* in units of `MHz² pc⁻¹ cm³ s` expressed as a
+`Float64`.
+"""
+const KDM = 4.148808e3
+
+"""
+`KDM32` is the *dispersion constant* in units of `MHz² pc⁻¹ cm³ s` expressed as a
+`Float32`.
+"""
+const KDM32 = 4.148808f3
 
 include("dispdelay.jl")
 include("coddtask.jl")
