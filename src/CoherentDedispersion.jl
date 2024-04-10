@@ -3,6 +3,10 @@ module CoherentDedispersion
 using FFTW, LinearAlgebra, Blio, PoolQueues
 
 export KDM, KDM32, dispdelay, dispfreq
+export CODDVoltageBuffer, copyraw!
+export CODDPowerBuffer, detect!
+export H!
+export compute_ntimes
 
 """
 `KDM` is the *dispersion constant* in units of `MHz² pc⁻¹ cm³ s` expressed as a
@@ -11,15 +15,19 @@ export KDM, KDM32, dispdelay, dispfreq
 const KDM = 4.148808e3
 
 """
-`KDM32` is the *dispersion constant* in units of `MHz² pc⁻¹ cm³ s` expressed as a
-`Float32`.
+`KDM32` is the *dispersion constant* in units of `MHz² pc⁻¹ cm³ s` expressed as
+a `Float32`.
 """
 const KDM32 = 4.148808f3
 
+include("chirp.jl")
 include("dispdelay.jl")
 include("dispfreq.jl")
 include("coddtask.jl")
 include("outputtask.jl")
+include("voltagebuffer.jl")
+include("powerbuffer.jl")
+include("sizing.jl")
 
 const CODDInputArrayPQ = PoolQueue{NTuple{2, Array{ComplexF32,2}}, NamedTuple}
 const CODDOutputArrayPQ = PoolQueue{NTuple{2, Array{ComplexF32,2}}, NamedTuple}
