@@ -55,7 +55,7 @@ function H(ij::CartesianIndex, ni::Integer, f0j::Float32, dfj::Float32, dm::Floa
 end
 
 function H(ij::CartesianIndex, ni, f0j, dfj, dm; dfi=dfj/ni)
-    H(ij[1]-1, ij[2]-1, Int(ni), Float32(f0j), Float32(dfj), Float32(dm); Float32(dfi))
+    H(ij[1]-1, ij[2]-1, Int(ni), Float32(f0j), Float32(dfj), Float32(dm); dfi=Float32(dfi))
 end
 
 """
