@@ -23,11 +23,13 @@ const KDM32 = 4.148808f3
 include("chirp.jl")
 include("dispdelay.jl")
 include("dispfreq.jl")
-include("coddtask.jl")
-include("outputtask.jl")
 include("voltagebuffer.jl")
 include("powerbuffer.jl")
 include("sizing.jl")
+
+include("inputtask.jl")
+include("coddtask.jl")
+include("outputtask.jl")
 
 const CODDInputArrayPQ = PoolQueue{NTuple{2, Array{ComplexF32,2}}, NamedTuple}
 const CODDOutputArrayPQ = PoolQueue{NTuple{2, Array{ComplexF32,2}}, NamedTuple}

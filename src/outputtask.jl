@@ -1,12 +1,17 @@
-# TODO should nintegrate come from consumed item?
-function _outputtask(pqin; outbuf, nintegrate=4)
-    outputfiles = Dict{String, IO}()
+function _outputtask(pqin)
+    local fbio
+    local auto_fftshift
+    local cross_fftshift
 
-    # intvw is view into outbuf with extra dim for integration
-    intvw = reshape(outbuf, 4, :, size(outbuf, 2))
+    """
+        c2r(c) -> r
 
-    # intbuf is similar to outvw, but has singleton summation dimension
-    intbuf = similar(outbuf, 1, size(outbuf,1)÷nintegrate, size(outbuf,2))
+    Creates a ReinterpretArray for c with a leading dimensino of 2 for re/im.
+    If c has size (S1, S2, ...) then r will have size (2, S1, S2, ...).
+    """
+    function c2r(c::AbstractArray{<:Complex})
+        reinterpret(reshape, real(eltype(c)), c)
+    end
 
     # While non-empty items keep coming in
     while true
@@ -14,52 +19,51 @@ function _outputtask(pqin; outbuf, nintegrate=4)
             # If item is empty, return nothing
             isempty(item) && return nothing
 
-            # Get dm, header, and block from item
-            @show keys(item)
-            dm = item.dm
-            overlap = item.overlap
-            rawname = item.rawname
-            header = item.header
-            data_blocks = item.data
-            @info "outputtask got overlap $overlap pktidx $(
-                header[:pktidx]) data $(
-                size(data_blocks[1])) $(data_blocks[1][1])"
+            # Get CODDPowerBuffer from item
+            cpb = item.cpb
 
-            # Compute Stokes I (for now)
-            outbuf .= abs2.(data_blocks[1])
-            outbuf .+= abs2.(data_blocks[2])
+            # Open output file and allocate fftshift buffers, if needed
+            if !@isdefined fbio
+                fbio = open(item.fbname, "w")
+                write(fbio, item.fbheader)
 
-            # Integrate
-            sum!(intbuf, intvw)
-            nout = (size(outbuf, 1) - overlap) ÷ nintegrate
-
-            # Construct outnane
-            outname = replace(rawname,
-                r"(\.\d\d\d\d)?\.raw$"=>".coddspec.$(lpad(nintegrate, 4, '0')).fil")
-
-            # Get IO for outname
-            io = get!(outputfiles, outname) do
-                @info "opening $outname"
-                newio = open(outname, "w")
-                fbh = Filterbank.Header(header;
-                    tsamp=nintegrate*header[:tbin], refdm=dm
+                auto_fftshift = similar(cpb.autos[1])
+                cross_fftshift = similar(cpb.cross)
+                reim_fftshift = reinterpret(reshape,
+                    real(eltype(cross_fftshift)), cross_fftshift
                 )
-                write(newio, fbh)
-                newio
             end
 
-            # Write data
-            write(io, @view intbuf[1, 1:nout, :])
+            for pol in cbp.autos
+                if size(pol, 1) > 1
+                    fftshift!(auto_fftshift, pol, 1)
+                    write(fbio, auto_fftshift)
+                else
+                    write(fbio, pol)
+                end
+            end
 
-            return item.data
+            if size(cpb.cross, 1) > 1
+                # Upchannelization, do fftshift and write
+                fftshift!(cross_fftshift, cpb.cross, 1)
+                for reim in eachslice(c2r(cross_fftshift), dims=1)
+                    write(fbio, reim)
+                end
+            else
+                # No upchannelization, write directly from cpb.cross
+                for reim in eachslice(c2r(cpb.cross), dims=1)
+                    write(fbio, reim)
+                end
+            end
+
+            # Return cpb for recycling
+            return cpb
         end === nothing && break
     end
 
-    for (fn, io) in outputfiles
-        @info "closing $fn"
-        close(io)
-    end
+    # Send end of input indicator downstream
+    produce!(pqout, (;))
 
-    @info "outputtask done"
+    @info "coddtask done"
     return nothing
 end
