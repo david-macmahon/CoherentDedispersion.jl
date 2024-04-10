@@ -5,6 +5,7 @@ version = "0.2.0"
 
 [deps]
 Blio = "87855aa7-8b24-49b4-b316-97c011f78d17"
+BlockArrays = "8e7c35d0-a365-5155-bbbb-fb81a777f24e"
 FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 PoolQueues = "da57cb61-2122-4cb9-bf56-fd6f75f7b468"
