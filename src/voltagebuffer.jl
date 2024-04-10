@@ -43,3 +43,7 @@ function H!(cvb::CODDVoltageBuffer, f0j, dfj, dm; ni=size(cvb.inputs[1],1), dfi=
     foreach(pol->H!(pol, f0j, dfj, dm; ni, dfi), cvb.inputs)
     cvb
 end
+
+function coddsynchronize(cvb::CODDVoltageBuffer)
+    coddsynchronize(cvb.inputs[1])
+end

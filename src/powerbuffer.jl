@@ -53,3 +53,7 @@ function detect!(dst::CODDPowerBuffer, src::CODDVoltageBuffer)
     Base.reducedim!(+, dst.cross4d, Broadcast.instantiate(bc_cross))
     dst
 end
+
+function coddsynchronize(cpb::CODDPowerBuffer)
+    coddsynchronize(cpb.autos4d[1])
+end
