@@ -1,45 +1,7 @@
-"""
-    chirp(k::Integer, l::Integer, dm, fhi, foff, Tms, N) -> ComplexF32
-    chirp(kl::CartesianIndex, dm, fhi, foff, Tms, N)
-
-Generate chirp phase factor used in `chirp!`.  `k` and `l` are zero-based
-offsets.  `kl` is a one-based `CartesianIndex`.  `dm` is the dispersion measure,
-`fhi` is the highest frequency in the highest frequency channel.  `foff` is the
-frequency offset between coarse channels (and the bandwidth of a single coarse
-channel).  `Tms` is the duration in milliseconds of the time span being chirped.
-`N` is the number of fine channels per coarse channel.
-"""
-function chirp(k::Integer, l::Integer, dm, fhi, foff, Tms, N)
-    # Compute fhil (fhi for coarse channel l)
-    fhil = fhi + l * foff
-    # Compute dfk (fine channel offset from fhil)
-    dfk = (foff / N) * ((k + N÷2) % N)
-    # Compute fkl, the frequency for (k,l)
-    fkl = fhil + dfk
-    # Compute dispersion delay from fhil to fkl
-    dd = dispdelay(fkl, fhil, dm)
-    # Return chirp phase factor
-    cispi(-2 * fkl * dd / Tms)
-end
-
-function chirp(kl::CartesianIndex, dm, fhi, foff, Tms, N)
-    chirp(kl[1]-1, kl[2]-1, dm, fhi, foff, Tms, N)
-end
-
-"""
-    chirp!(workbuf::AbstractMatrix, dm, fhi, foff, Tms)
-
-Apply a dedispersion "chirp" to `workbuf` based on the dispersion measure `dm`,
-the highest frequency (of the highest frequency channel) `fhi`, the frequency
-offset between coarse channels `foff`, and the total de-chirp time span `Tms`.
-`fhi` and `foff` must be given in GHz.  `Tms` must be given in milliseconds.
-"""
-function chirp!(workbuf::AbstractMatrix, dm, fhi, foff, Tms)
-    N = size(workbuf, 1)
-    workbuf .*= chirp.(CartesianIndices(workbuf), dm, fhi, foff, Tms, N)
-end
-
-function _coddtask(pqin, pqout; workbufs, overlap_granularity=4)
+function _coddtask(pqin, pqout;
+    workbufs::NTuple{2,<:AbstractArray{<:Complex,2}},
+    overlap_granularity=4
+)
     old_blocks = nothing
 
     # Create FFT plans
@@ -51,7 +13,6 @@ function _coddtask(pqin, pqout; workbufs, overlap_granularity=4)
     local dm
     local fhi
     local foff
-    local Tms
 
     # While non-empty items keep coming in
     while true
@@ -67,13 +28,25 @@ function _coddtask(pqin, pqout; workbufs, overlap_granularity=4)
             @info "coddtask got dm $dm pktidx $(header[:pktidx]) data $(size(new_blocks[1])) $(new_blocks[1][1])"
 
             # Recompute freq info etc
-            fhi = (header[:obsfreq] + abs(header[:obsbw])/2) / 1e3
-            foff = header[:chan_bw] / 1e3
-            Tms = header[:tbin] * ntime * 1e3
-            maxdd = dispdelay(fhi-nchan*abs(foff), fhi-(nchan-1)*abs(foff), dm)
-            overlap = cld(maxdd/1e3, header[:tbin]) |> Int
-            # Round overlap up to next multiple of overlap_granularity
+            fhi = (header[:obsfreq] + abs(header[:obsbw])/2)
+            flo = (header[:obsfreq] - abs(header[:obsbw])/2)
+            foff = header[:chan_bw]
+            # maxdd is dispersion delay across lowest freq coarse channel
+            maxdd = dispdelay(flo+abs(foff), flo, dm)
+            # overlap is how many time samples correspond to maxdd.  This is the
+            # number of samples that must be carried forward to the next
+            # workbuf.
+            overlap = cld(maxdd, header[:tbin]) |> Int
+            # Round overlap up to next multiple of overlap_granularity.
+            # TODO Actually, we should probably round (ntime-overlap) down to
+            # the previous multiple of overlap_granularity.
             overlap = overlap_granularity * cld(overlap, overlap_granularity)
+
+            # Parameters for `H!`
+            ni = ntime
+            dfj = foff
+            dfi = dfj/ni
+            f0j = fhi
 
             # Process old block
             @info "> next $next"
@@ -93,8 +66,8 @@ function _coddtask(pqin, pqout; workbufs, overlap_granularity=4)
 
                 # Forward FFT block
                 mul!.(workbufs, Ref(fplan), workbufs)
-                # Apply chirp
-                chirp!.(workbufs, dm, fhi, foff, Tms)
+                # Apply phase factors
+                H!.(workbufs, dm, fhi, foff, Tms)
                 # Backward FFT block
                 mul!.(workbufs, Ref(bplan), workbufs)
 
