@@ -193,17 +193,31 @@ function create_pipeline(rawfiles, dm;
     upchan_plan = create_poolqueues_plans(ntpi, nfpc, nint, ntpo, nchan; use_cuda)
 
     # Create filterbank filename from name of first rawfile
-    rawname = first(rawfiles)
-    fbbase = replace(basename(rawname), r"\d\d\d\d.raw$"=>"rawcodd.0000.fil")
+    rawbase = basename(first(rawfiles))
+    fbbase = replace(rawbase, r"\d\d\d\d.raw$"=>"rawcodd.0000.fil")
     fbname = joinpath(outdir, fbbase)
 
     # Create filterbank header (with values updated based on nfpc and nint)
-    fbheader = Filterbank.Header(hdrs[1])
+    # rawspec used machine_id=20 so we might as well use machine_id=21 (it's
+    # basically an anachronism at this point).  We also force nifs=4 and then
+    # tweak some values to account for the upchannelization and time
+    # integration (if any).
+    fbheader = Filterbank.Header(hdrs[1]; machine_id=21, nifs=4,
+                                          rawdatafile=rawbase)
     fbheader[:nchans] *= nfpc
     fbheader[:foff] /= nfpc
     fbheader[:fch1] -= (nfpc÷2) * fbheader[:foff]
     fbheader[:tsamp] *= nfpc*nint
     fbheader[:nifs] = 4
+    # For compatiblity with rawspec, use RA_STR and DEC_STR to get RA/dec.
+    # Blio.jl opts not to take on a dependency for the HH:MM:SS.s parsing so it
+    # uses the dynamic (i.e. from the telecope's encoders) RA/DEC fields.
+    if haskey(hdrs[1], :ra_str)
+        fbheader[:src_raj] = hms2ha(hdrs[1][:ra_str])
+    end
+    if haskey(hdrs[1], :dec_str)
+        fbheader[:src_dej] = dms2deg(hdrs[1][:dec_str])
+    end
 
     # TODO create pqs and plans inside create_tasks
     tasks = create_tasks(data, pqs;
