@@ -14,8 +14,8 @@ function H(f::Float32, f0::Float32, dm::Float32)
 end
 
 """
-    function H(i::Integer, j::Integer, ni, f0j, dfj, dm; dfi=dfj/ni)
-    function H(ij::CartesianIndex, ni, f0j, dfj, dm; dfi=dfj/ni)
+    function H(i::Integer, j::Integer, ni, f0j, dfj, dm, dfi=dfj/ni)
+    function H(ij::CartesianIndex, ni, f0j, dfj, dm, dfi=dfj/ni)
 
 Compute a coherent dedispersion complex phase factor for a single frequency.
 The frequency is determined by a two dimensional indexing scheme that
@@ -36,7 +36,7 @@ upper edge of each coarse channel rather than across all coarse channels.  Other
 schemes are possible, but they are probably best implemented in a similar but
 separate method (rather than as conditional branches within this function).
 """
-function H(i::Integer, j::Integer, ni, f0j, dfj, dm; dfi=dfj/ni)
+function H(i::Integer, j::Integer, ni, f0j, dfj, dm, dfi=dfj/ni)
     # Compute FFT shifted value of i.  For top edge f0j and ni == 8, we want ii
     # to go: [4, 5, 6, 7, 0, 1, 2, 3]
     ii = (i + (ni÷2)) % ni
@@ -50,22 +50,22 @@ function H(i::Integer, j::Integer, ni, f0j, dfj, dm; dfi=dfj/ni)
     H(f, f0, dm)
 end
 
-function H(ij::CartesianIndex, ni::Integer, f0j::Float32, dfj::Float32, dm::Float32; dfi::Float32=dfj/ni)
-    H(ij[1]-1, ij[2]-1, ni, f0j, dfj, dm; dfi)
+function H(ij::CartesianIndex, ni::Integer, f0j::Float32, dfj::Float32, dm::Float32, dfi::Float32=dfj/ni)
+    H(ij[1]-1, ij[2]-1, ni, f0j, dfj, dm, dfi)
 end
 
-function H(ij::CartesianIndex, ni, f0j, dfj, dm; dfi=dfj/ni)
-    H(ij[1]-1, ij[2]-1, Int(ni), Float32(f0j), Float32(dfj), Float32(dm); dfi=Float32(dfi))
+function H(ij::CartesianIndex, ni, f0j, dfj, dm, dfi=dfj/ni)
+    H(ij[1]-1, ij[2]-1, Int(ni), Float32(f0j), Float32(dfj), Float32(dm), Float32(dfi))
 end
 
 """
     function H!(m::AbstractMatrix, f0j, dfj, dm; ni=size(m,1), dfi=dfj/ni)
 
 Apply coherent dedispersion complex phase factors to the elements of `m`.  This
-essentially multiples each element of `m` by `H(ij, ni, f0j, dfj, dm; dfi)`,
+essentially multiples each element of `m` by `H(ij, ni, f0j, dfj, dm, dfi)`,
 where `ij` is the element's `CartesianIndex`.  `ni` is the size of the first
 dimension of `m`.  `dfi` is `dfj/ni`.
 """
 function H!(m::AbstractMatrix, f0j, dfj, dm; ni=size(m,1), dfi=dfj/ni)
-    m .*= H.(CartesianIndices(m), ni, f0j, dfj, dm; dfi)
+    m .*= H.(CartesianIndices(m), ni, f0j, dfj, dm, dfi)
 end
