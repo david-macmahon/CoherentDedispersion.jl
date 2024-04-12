@@ -13,63 +13,17 @@ dm = DMVELA
 #nfpc, nint = 1, 4 # Desired production values
 nfpc, nint = 16, 64 # Test values
 
-# Load data files (reads headers, mmap's data blocks)
-# Use explicitly typed Vector for datablocks so we don't have to refine later.
-hdrs, blks = GuppiRaw.load(rawfiles; datablocks=Array{Complex{Int8},3}[]);
+pqs, tasks = create_pipeline(rawfiles, dm; nfpc, nint)
 
-npol, _, nchan = size(blks[1])
-npol == 2 || error("only dual-pol files are supported")
-@show length(hdrs) length(blks) size(blks[1])
-
-# Get freq info from header
-obsfreq = hdrs[1][:obsfreq]
-obsbw = hdrs[1][:obsbw]
-# Hack to correct for incorrect sign on obsbw.
-if obsbw > 0
-    @warn "obsbw > 0, negating to correct"
-    obsbw = -obsbw
-end
-
-# Concatenate all blocks into a BlockArray "view" along the time (i.e. second)
-# dimension
-#data = mortar(reshape(convert(Vector{typeof(blks[1])}, blks), (1,:,1)));
-data = mortar(reshape(blks, (1,:,1)));
-
-# Compute ntime values
-ntpi, ntpo = compute_ntimes(hdrs[1], dm; nfpc, nint)
-
-cvb = CODDVoltageBuffer(ntpi, nfpc, nint, ntpo, nchan)
-cpb = CODDPowerBuffer(nfpc, nchan, ntpo)
-
-codd_plan  = plan_fft!(cvb.inputs[1], 1)
-upchan_plan = plan_fft!(cvb.upchans[1], 1)
-
-##
-
-# Get parameters for H!
-f0j = obsfreq - obsbw/2
-dfj = obsbw / (hdrs[1].obsnchan / get(hdrs[1], :nants, 1))
-dm = DMVELA
-
-# Copy raw block 3 to cvb
-copyraw!(cvb, blks[3])
-
-# Coherently dedisperse
-foreach(pol->mul!(pol, codd_plan, pol), cvb.inputs)
-H!(cvb, f0j, dfj, dm)
-foreach(pol->mul!(pol, inv(codd_plan), pol), cvb.inputs)
-
-# Upchannelize
-foreach(pol->mul!(pol, upchan_plan, pol), cvb.upchans)
-
-# Detect
-detect!(cpb, cvb);
+fbname = fetch(last(tasks))
+println("saved output to $fbname")
+println("done")
 
 ##
 
 # CPU-Only Pipeline:
 #
-#     Read Task (reads RAW files)
+#     Input Task (pushes overlapping blocks of RAW data)
 #     |
 #     |
 #      > CPU Voltage PQ
@@ -78,14 +32,14 @@ detect!(cpb, cvb);
 #     CODD Task (CODD/upchan/detect)
 #     |
 #     |
-#      > GPU Power PQ
+#      > CPU Power PQ
 #     |
 #     V
 #     Output Task (writes Filterbank files)
 
 # CPU/GPU Pipeline:
 #
-#     Read Task (reads RAW files)
+#     Input Task (pushes overlapping blocks of RAW data)
 #     |
 #     |
 #      > CPU Voltage PQ
