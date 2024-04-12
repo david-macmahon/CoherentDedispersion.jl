@@ -4,24 +4,26 @@
 #
 # CODD Voltage buffer:
 # CODD buffer input format NTuple{2,Matrix{Complex{Float32}}} ((Ntpi,Nchan), (Ntpi,Nchan))
-# CODD buffer output reshaped view ((Nfpc,Nint,Ntpo,Nchan), (Nfpc,Nint,Ntpo,Nchan))
-# CODD buffer pre-integration PermutedDimsArray (1,4,2,3) == (Nfpc, Nchan, Nint, Ntpo)
-
-#import Base: copyto!
-
-#abstract type AbstractCODDVoltageBuffer end
+# CODD buffer output reshaped view ((Nfpc,Nint,:,Nchan), (Nfpc,Nint,Ntpi÷(Nfpc*Nint),Nchan))
+# CODD buffer pre-integration SubArray of PermutedDimsArray (1,4,2,3) == (Nfpc, Nchan, Nint, Ntpo)
 
 struct CODDVoltageBuffer{T2<:AbstractArray{ComplexF32,2},
-                         T4<:AbstractArray{ComplexF32,4}} #<: AbstractCODDVoltageBuffer
+                         T4<:AbstractArray{ComplexF32,4}}
     inputs::NTuple{2,T2}
     upchans::NTuple{2,T4}
-    preints::NTuple{2,PermutedDimsArray{ComplexF32,4}}
+    preints::NTuple{2,SubArray{ComplexF32,4}}
 end
 
 function CODDVoltageBuffer(::Type{T}, ntpi, nfpc, nint, ntpo, nchan) where {T<:AbstractArray}
     inputs = ntuple(i->T{ComplexF32}(undef, ntpi, nchan), 2)
-    upchans = view.(reshape.(inputs, Ref((nfpc, nint, :, nchan))), :, :, Ref(1:ntpo), :)
-    preints = PermutedDimsArray.(upchans, Ref((1,4,2,3)))
+    # upchans are reshaped views of inputs that we will upchannelize along the
+    # first dimention (of size nfpc).  We will end up upchannelizing the entire
+    # input buffer rather than just the the first nfpc*nint*ntpo time samples,
+    # but this allows CUDA.CUFFT to work with the data in situ rather than
+    # having to copy to another buffer so it's a worthwhile trade-off (IMHO, I
+    # have not benchmarked it).
+    upchans = reshape.(inputs, Ref((nfpc, nint, :, nchan)))
+    preints = view.(PermutedDimsArray.(upchans, Ref((1,4,2,3))), :, :, :, Ref(1:ntpo))
     CODDVoltageBuffer(inputs, upchans, preints)
 end
 
