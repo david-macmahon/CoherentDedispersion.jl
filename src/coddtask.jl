@@ -22,10 +22,10 @@ function _coddtask(pqin, pqout; f0j, dfj, dm, codd_plan, upchan_plan)
 
             # Send downstream
             produce!(pqout) do cpb
-                fill!(cbp, 0)
+                fill!(cpb, 0)
                 detect!(cpb, cvb)
                 coddsynchronize(cpb) # Synchronize if cpb needs it
-                return (; fbnamename, fbheader, cpb)
+                return (; fbname, fbheader, cpb)
             end
 
             # Return cvb for recycling
