@@ -1,10 +1,29 @@
 const CODDVoltagePQ = PoolQueue{CODDVoltageBuffer, NamedTuple}
 const CODDPowerPQ = PoolQueue{CODDPowerBuffer, NamedTuple}
 
-"""
-    create_poolqueues(::Type{Array}, ntpi, nfpc, nint, ntpo, nchan)
+# PoolQueues are a bit fickle about Channel{T} vs T
+function create_plans(cvpq::PoolQueue{<:AbstractChannel{CODDVoltageBuffer}})
+    cvb = acquire!(cvpq)
+    codd_plan  = plan_fft!(cvb.inputs[1], 1)
+    upchan_plan = plan_fft!(cvb.upchans[1], 1);
+    recycle!(cvpq, cvb)
 
-Create the PoolQueues for a CoherentDedispersion pipeline.
+    (; codd_plan, upchan_plan)
+end
+
+"""
+    create_poolqueues_plans(ntpi, nfpc, nint, ntpo, nchan;
+                            N=2, use_cuda=CUDA.functional())
+
+Create the PoolQueues and FFT plans for a CoherentDedispersion pipeline.  If
+`use_cuda` is `false`, PoolQueues and FFT plans for a CPU-only pipeline will be
+created.  If `use_cuda` is true (and CUDA is functional), PoolQueues and FFT
+plans for a CPU/GPU pipeline will be created.  `N` is the number of items to
+populate each PoolQueue with.
+
+# Extended Help
+
+CPU-only pipeline:
 
     Input Task (pushes overlapping blocks of RAW data)
     |
@@ -19,55 +38,126 @@ Create the PoolQueues for a CoherentDedispersion pipeline.
     |
     V
     Output Task (writes Filterbank files)
+
+CPU/GPU Pipeline:
+
+    Input Task (pushes overlapping blocks of RAW data)
+    |
+    |
+     > CPU Voltage PQ
+    |
+    V
+    GPU Copy Task (H2D)
+                      |
+                      |
+                       > GPU Voltage PQ
+                      |
+                      V
+                      CODD Task (CODD/upchan/detect)
+                      |
+                      |
+                       > GPU Power PQ
+                      |
+                      V
+    GPU Copy Task (D2H)
+    |
+    |
+     > CPU Power PQ
+    |
+    V
+    Output Task (writes Filterbank files)
 """
-function create_poolqueues(T::Type{<:AbstractArray},
-                           ntpi, nfpc, nint, ntpo, nchan; N=2)
+function create_poolqueues_plans(ntpi, nfpc, nint, ntpo, nchan;
+                                 N=2, use_cuda=CUDA.functional())
+    # cvpq = CPU Voltage PoolQueue
     cvpq = CODDVoltagePQ(N) do
-        CODDVoltageBuffer(T, ntpi, nfpc, nint, ntpo, nchan)
+        CODDVoltageBuffer(Array, ntpi, nfpc, nint, ntpo, nchan)
     end
 
-    cppq = CODDPowerPQ(N) do 
-        CODDPowerBuffer(T, nfpc, nchan, ntpo)
+    # cppq = CPU Power PoolQueue
+    cppq = CODDPowerPQ(N) do
+        CODDPowerBuffer(Array, nfpc, nchan, ntpo)
     end
 
-    (; cvpq, cppq)
+    if use_cuda
+        # gvpq = GPU Voltage PoolQueue
+        gvpq = CODDVoltagePQ(N) do
+            CODDVoltageBuffer(CuArray, ntpi, nfpc, nint, ntpo, nchan)
+        end
+
+        # gppq = GPU Power PoolQueue
+        gppq = CODDPowerPQ(N) do
+            CODDPowerBuffer(CuArray, nfpc, nchan, ntpo)
+        end
+
+        codd_plan, upchan_plan = create_plans(gvpq)
+
+        return (; cvpq, gvpq, gppq, cppq), codd_plan, upchan_plan
+    else
+        codd_plan, upchan_plan = create_plans(cvpq)
+
+        return (; cvpq, cppq), codd_plan, upchan_plan
+    end
 end
-
-function create_poolqueues(ntpi, nfpc, nint, ntpo, nchan)
-    create_poolqueues(Array, ntpi, nfpc, nint, ntpo, nchan)
-end
-
-# PoolQueues are a bit fickle about Channel{T} vs T
-function create_plans(cvpq::PoolQueue{<:AbstractChannel{CODDVoltageBuffer}})
-    cvb = acquire!(cvpq)
-    codd_plan  = plan_fft!(cvb.inputs[1], 1)
-    upchan_plan = plan_fft!(cvb.upchans[1], 1);
-    recycle!(cvpq, cvb)
-
-    (; codd_plan, upchan_plan)
-end
-
 
 function create_tasks(data, pqs;
                       ntpi, dtpi, fbname, fbheader,
-                      f0j, dfj, dm, codd_plan, upchan_plan)
+                      f0j, dfj, dm, codd_plan, upchan_plan,
+                      use_cuda=CUDA.functional())
     inputtask = errormonitor(
         Threads.@spawn _inputtask(data, pqs.cvpq;
                                   ntpi, dtpi, fbname, fbheader)
     )
+
+    pqin, pqout = if use_cuda
+        pqs.gvpq, pqs.gppq
+    else
+        pqs.cvpq, pqs.cppq
+    end
     coddtask = errormonitor(
-        Threads.@spawn _coddtask(pqs.cvpq, pqs.cppq;
+        Threads.@spawn _coddtask(pqin, pqout;
                                  f0j, dfj, dm, codd_plan, upchan_plan)
     )
+
     outputtask = errormonitor(
         Threads.@spawn _outputtask(pqs.cppq)
     )
 
-    (; inputtask, coddtask, outputtask)
+    tasks = if use_cuda
+        htodtask = errormonitor(
+            Threads.@spawn _copytask(pqs.cvpq, pqs.gvpq; id="HtoD")
+        )
+
+        dtohtask = errormonitor(
+            Threads.@spawn _copytask(pqs.gppq, pqs.cppq; id="DtoH")
+        )
+
+        (; inputtask, htodtask, coddtask, dtohtask, outputtask)
+    else
+        (; inputtask, coddtask, outputtask)
+    end
+
+    available = Threads.nthreads()
+    desired = length(tasks) + 1 # +1 for main thread
+    if available < desired
+        @warn "only have $available thread(s) for $desired tasks"
+    end
+
+    return tasks
 end
 
-function create_pipeline(T::Type{<:AbstractArray}, rawfiles, dm;
-                         nfpc=1, nint=4, outdir=".")
+function create_pipeline(rawfiles, dm;
+                         nfpc=1, nint=4, outdir=".", use_cuda=CUDA.functional())
+    # Validate use_cuda (in case it is passed explicitly)
+    if !CUDA.functional()
+        @warn "CUDA is not functional, using CPU-only"
+        use_cuda = false
+    elseif !use_cuda
+        @info "CUDA is functional, but CPU-only requested"
+    else
+        @info "CUDA is functional and will be used"
+    end
+
     # Load data files (reads headers, mmap's data blocks).  Use explicitly typed
     # Vector for datablocks so we don't have to refine later.
     hdrs, blks = GuppiRaw.load(rawfiles; datablocks=Array{Complex{Int8},3}[]);
@@ -97,12 +187,10 @@ function create_pipeline(T::Type{<:AbstractArray}, rawfiles, dm;
     f0j = obsfreq - obsbw/2
     dfj = obsbw / (hdrs[1].obsnchan / get(hdrs[1], :nants, 1))
 
-    # Create PoolQueues
-    pqs = create_poolqueues(T, ntpi, nfpc, nint, ntpo, nchan)
-
-    # Create FFT plans
-    @show typeof(pqs.cvpq)
-    codd_plan, upchan_plan = create_plans(pqs.cvpq)
+    # Create PoolQueues and FFT plans
+    pqs,
+    codd_plan,
+    upchan_plan = create_poolqueues_plans(ntpi, nfpc, nint, ntpo, nchan; use_cuda)
 
     # Create filterbank filename from name of first rawfile
     rawname = first(rawfiles)
@@ -118,21 +206,15 @@ function create_pipeline(T::Type{<:AbstractArray}, rawfiles, dm;
     fbheader[:tstart] += fbheader[:tsamp] / (24*60*60) / 2
     fbheader[:nifs] = 4
 
+    # TODO create pqs and plans inside create_tasks
     tasks = create_tasks(data, pqs;
                          ntpi, dtpi, fbname, fbheader,
-                         f0j, dfj, dm, codd_plan, upchan_plan)
+                         f0j, dfj, dm, codd_plan, upchan_plan, use_cuda)
 
     (pqs, tasks)
 end
 
-function create_pipeline(T::Type{<:AbstractArray}, rawfile::AbstractString, dm; nfpc=1, nint=4)
-    create_pipeline(T, [rawfile], dm; nfpc, nint)
-end
-
-function create_pipeline(rawfiles, dm; nfpc=1, nint=4)
-    create_pipeline(Array, rawfiles, dm; nfpc, nint)
-end
-
-function create_pipeline(rawfile::AbstractString, dm; nfpc=1, nint=4)
-    create_pipeline(Array, [rawfile], dm; nfpc, nint)
+function create_pipeline(rawfile::AbstractString, dm;
+                         nfpc=1, nint=4, outdir=".", use_cuda=CUDA.functional())
+    create_pipeline([rawfile], dm; nfpc, nint, outdir, use_cuda)
 end

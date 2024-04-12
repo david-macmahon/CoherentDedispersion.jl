@@ -1,6 +1,6 @@
 module CoherentDedispersion
 
-using FFTW, LinearAlgebra, Blio, PoolQueues, BlockArrays
+using FFTW, LinearAlgebra, Blio, PoolQueues, BlockArrays, CUDA, CUDA.CUFFT
 using RadioInterferometry # For guppifixup.jl
 
 export KDM, KDM32, dispdelay, dispfreq
@@ -31,6 +31,7 @@ include("sizing.jl")
 
 include("inputtask.jl")
 include("coddtask.jl")
+include("copytask.jl")
 include("outputtask.jl")
 
 include("guppifixup.jl")
@@ -43,7 +44,11 @@ Potential synchronization point for `a`.  Default method is a no-op, but this
 function may be overloaded for specific types of `a` (e.g. a GPU Array type) if
 synchronization is required/desired.
 """
-function coddsynchronize(a)
+function coddsynchronize(_)
+end
+
+function coddsynchronize(_::CuArray)
+    synchronize()
 end
 
 end #module CoherentDedispersion

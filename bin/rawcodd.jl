@@ -1,6 +1,7 @@
 using CoherentDedispersion, Blio, PoolQueues, BlockArrays, FFTW, LinearAlgebra
 
-dir = "/datag/collate_mb/PKS_0277_2018-03-21T07:00/blc06"
+#dir = "/datag/collate_mb/PKS_0277_2018-03-21T07:00/blc06"
+dir = "/mnt_blpc3/datax/scratch/davidm/rawcodd"
 rawfile = joinpath(dir, "guppi_58198_27514_685364_J0835-4510_B3_0001.0000.raw")
 rawfiles = [rawfile]
 DMVELA = 67.771
@@ -13,7 +14,7 @@ dm = DMVELA
 #nfpc, nint = 1, 4 # Desired production values
 nfpc, nint = 16, 64 # Test values
 
-pqs, tasks = create_pipeline(rawfiles, dm; nfpc, nint)
+pqs, tasks = create_pipeline(rawfiles, dm; nfpc, nint)#, use_cuda=true)
 
 fbname = fetch(last(tasks))
 println("saved output to $fbname")
