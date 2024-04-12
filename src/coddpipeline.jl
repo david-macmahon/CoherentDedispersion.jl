@@ -203,7 +203,6 @@ function create_pipeline(rawfiles, dm;
     fbheader[:foff] /= nfpc
     fbheader[:fch1] -= (nfpc÷2) * fbheader[:foff]
     fbheader[:tsamp] *= nfpc*nint
-    fbheader[:tstart] += fbheader[:tsamp] / (24*60*60) / 2
     fbheader[:nifs] = 4
 
     # TODO create pqs and plans inside create_tasks
