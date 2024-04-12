@@ -40,7 +40,7 @@ end
 
 function Base.copyto!(dst::CODDPowerBuffer, src::CODDPowerBuffer)
     foreach(((d,s),)->copyto!(d,s), zip(dst.autos4d, src.autos4d))
-    foreach(((d,s),)->copyto!(d,s), zip(dst.cross4d, src.cross4d))
+    copyto!(dst.cross4d, src.cross4d)
     dst
 end
 
