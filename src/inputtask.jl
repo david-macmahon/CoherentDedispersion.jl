@@ -14,7 +14,7 @@ function _inputtask(data, pqout; ntpi, dtpi, fbname, fbheader)
         produce!(pqout) do cvb
             copyraw!(cvb, @view data[:,t:t+ntpi-1,:])
             coddsynchronize(cvb) # Synchronize if cvb needs it
-            return (; fbname, fbheader, cvb)
+            return (; fbname, fbheader, data=cvb)
         end
     end
 

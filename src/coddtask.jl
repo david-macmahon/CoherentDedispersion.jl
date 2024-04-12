@@ -8,7 +8,7 @@ function _coddtask(pqin, pqout; f0j, dfj, dm, codd_plan, upchan_plan)
             # Get fields from item
             fbname = item.fbname
             fbheader = item.fbheader
-            cvb = item.cvb
+            cvb = item.data
 
             # Coherently dedisperse
             foreach(pol->mul!(pol, codd_plan, pol), cvb.inputs)
@@ -25,7 +25,7 @@ function _coddtask(pqin, pqout; f0j, dfj, dm, codd_plan, upchan_plan)
                 fill!(cpb, 0)
                 detect!(cpb, cvb)
                 coddsynchronize(cpb) # Synchronize if cpb needs it
-                return (; fbname, fbheader, cpb)
+                return (; fbname, fbheader, data=cpb)
             end
 
             # Return cvb for recycling

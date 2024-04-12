@@ -25,7 +25,7 @@ function _outputtask(pqin)
             isempty(item) && return nothing
 
             # Get CODDPowerBuffer from item
-            cpb = item.cpb
+            cpb = item.data
             nfpc, nchan, ntpo = size(cpb.autos[1])
 
             # Open output file and allocate write buffer, if needed
@@ -56,7 +56,7 @@ function _outputtask(pqin)
         end === nothing && break
     end
 
-    @info "coddtask done"
+    @info "outputtask done"
 
     return fbname
 end
