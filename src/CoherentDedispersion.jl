@@ -1,12 +1,14 @@
 module CoherentDedispersion
 
-using FFTW, LinearAlgebra, Blio, PoolQueues
+using FFTW, LinearAlgebra, Blio, PoolQueues, BlockArrays
+using RadioInterferometry # For guppifixup.jl
 
 export KDM, KDM32, dispdelay, dispfreq
 export CODDVoltageBuffer, copyraw!
 export CODDPowerBuffer, detect!
 export H!
 export compute_ntimes
+export create_pipeline
 
 """
 `KDM` is the *dispersion constant* in units of `MHz² pc⁻¹ cm³ s` expressed as a
@@ -31,8 +33,8 @@ include("inputtask.jl")
 include("coddtask.jl")
 include("outputtask.jl")
 
-const CODDInputArrayPQ = PoolQueue{NTuple{2, Array{ComplexF32,2}}, NamedTuple}
-const CODDOutputArrayPQ = PoolQueue{NTuple{2, Array{ComplexF32,2}}, NamedTuple}
+include("guppifixup.jl")
+include("coddpipeline.jl")
 
 """
     coddsynchronize(a)
