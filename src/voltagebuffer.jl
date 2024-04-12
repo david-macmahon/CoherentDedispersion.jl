@@ -18,8 +18,8 @@ struct CODDVoltageBuffer{T2<:AbstractArray{ComplexF32,2},
     preints::NTuple{2,PermutedDimsArray{ComplexF32,4}}
 end
 
-function CODDVoltageBuffer(::Type{M}, ntpi, nfpc, nint, ntpo, nchan) where {M<:AbstractMatrix}
-    inputs = ntuple(i->M{ComplexF32}(undef, ntpi, nchan), 2)
+function CODDVoltageBuffer(::Type{T}, ntpi, nfpc, nint, ntpo, nchan) where {T<:AbstractArray}
+    inputs = ntuple(i->T{ComplexF32}(undef, ntpi, nchan), 2)
     upchans = view.(reshape.(inputs, Ref((nfpc, nint, :, nchan))), :, :, Ref(1:ntpo), :)
     preints = PermutedDimsArray.(upchans, Ref((1,4,2,3)))
     CODDVoltageBuffer(inputs, upchans, preints)
