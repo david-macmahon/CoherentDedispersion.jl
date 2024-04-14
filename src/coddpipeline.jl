@@ -109,12 +109,12 @@ function create_poolqueues_plans(ntpi, nfpc, nint, ntpo, nchan;
     end
 end
 
-function create_tasks(data, pqs;
+function create_tasks(blks, pqs;
                       ntpi, dtpi, fbname, fbheader,
                       f0j, dfj, dm, codd_plan, upchan_plan,
                       use_cuda=CUDA.functional())
     inputtask = errormonitor(
-        Threads.@spawn _inputtask(data, pqs.cvpq;
+        Threads.@spawn _inputtask(blks, pqs.cvpq;
                                   ntpi, dtpi, fbname, fbheader)
     )
 
@@ -167,7 +167,7 @@ function create_pipeline(rawfiles, dm;
         @info "CUDA is functional and will be used"
     end
 
-    # Load data files (reads headers, mmap's data blocks).  Use explicitly typed
+    # Load RAW files (reads headers, mmap's data blocks).  Use explicitly typed
     # Vector for datablocks so we don't have to refine later.
     hdrs, blks = GuppiRaw.load(rawfiles; datablocks=Array{Complex{Int8},3}[]);
 
@@ -178,10 +178,6 @@ function create_pipeline(rawfiles, dm;
     npol == 2 || error("only dual-pol files are supported")
 
     nchan = size(blks[1], 3)
-
-    # Concatenate all blocks into a BlockArray "view" along the time (i.e.
-    # second) dimension
-    data = mortar(reshape(blks, (1,:,1)));
 
     # Compute ntime values
     ntpi, ntpo = compute_ntimes(hdrs[1], dm; nfpc, nint)
@@ -229,7 +225,7 @@ function create_pipeline(rawfiles, dm;
     end
 
     # TODO create pqs and plans inside create_tasks
-    tasks = create_tasks(data, pqs;
+    tasks = create_tasks(blks, pqs;
                          ntpi, dtpi, fbname, fbheader,
                          f0j, dfj, dm, codd_plan, upchan_plan, use_cuda)
 

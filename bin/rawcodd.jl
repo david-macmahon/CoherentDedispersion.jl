@@ -1,4 +1,4 @@
-using CoherentDedispersion, Blio, PoolQueues, BlockArrays, FFTW, LinearAlgebra
+using CoherentDedispersion, Blio, PoolQueues, FFTW, LinearAlgebra
 
 #dir = "/datag/collate_mb/PKS_0277_2018-03-21T07:00/blc06"
 dir = "/mnt_blpc3/datax/scratch/davidm/rawcodd"
