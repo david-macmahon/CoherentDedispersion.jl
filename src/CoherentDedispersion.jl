@@ -2,6 +2,7 @@ module CoherentDedispersion
 
 using FFTW, LinearAlgebra, Blio, PoolQueues, BlockArrays, CUDA, CUDA.CUFFT
 using RadioInterferometry # For guppifixup.jl
+using ProgressBars
 
 export KDM, KDM32, dispdelay, dispfreq
 export CODDVoltageBuffer, copyraw!

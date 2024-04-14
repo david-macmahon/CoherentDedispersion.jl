@@ -6,10 +6,9 @@ function _inputtask(data, pqout; ntpi, dtpi, fbname, fbheader)
     ntime = size(data, 2)
     
     startidxs = 1:dtpi:(ntime-ntpi+1)
-    # Loop thrrough input time samples, sending ntpi time samples each
+    # Loop through input time samples, sending ntpi time samples each
     # iteration, but only advancing dtpi time samples each iteration.
-    for (i,t) in enumerate(startidxs)
-        @info "processing overlapped block $i starting at time index $t"
+    for t in ProgressBar(startidxs)
         # Send data downstream
         produce!(pqout) do cvb
             copyraw!(cvb, @view data[:,t:t+ntpi-1,:])
