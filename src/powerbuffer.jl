@@ -44,13 +44,42 @@ function Base.copyto!(dst::CODDPowerBuffer, src::CODDPowerBuffer)
     dst
 end
 
-function detect!(dst::CODDPowerBuffer, src::CODDVoltageBuffer)
-    foreach(zip(dst.autos4d, src.preints)) do (d,s)
-        Base.mapreducedim!(abs2, +, d, s)
+"""
+    sumdiff!(a, b) -> (a, b)
+
+For equally sized Arrays `a` and `b`, modify `a` in place to be `a+b` and modify
+`b` in place to be `a-b`.
+"""
+function sumdiff!(a::AbstractArray, b::AbstractArray)
+    for i in eachindex(a,b)
+        @inbounds a[i], b[i] = a[i]+b[i], a[i]-b[i]
     end
-    bc_conj = Broadcast.broadcasted(conj, src.preints[2])
-    bc_cross = Broadcast.broadcasted(*, src.preints[1], bc_conj)
-    Base.reducedim!(+, dst.cross4d, Broadcast.instantiate(bc_cross))
+end
+
+function sumdiff!(a::CuArray, b::CuArray)
+    # This is a bit of a hack.  This function should be made into a kernel!
+    a .+= b
+    b .= a .- (2 .* b) # b = (a+b)-2b = a-b
+    a, b
+end
+
+function detect!(dst::CODDPowerBuffer, src::CODDVoltageBuffer;
+                 dostokes::Bool=true, doconj::Bool=false, doscale=true)
+    # Compute autos (with optional scaling by 127^2 to match rawspec)
+    scaling = doscale ? 127f0^2 : 1f0
+    foreach(zip(dst.autos4d, src.preints)) do (d,s)
+        Base.mapreducedim!(x->abs2(x)/scaling, +, d, s)
+    end
+
+    # If stokes is requested, compute I and Q
+    dostokes && sumdiff!(dst.autos4d[1], dst.autos4d[2])
+
+    # If inputs are NOT conjugated (conj==false), compute `conj.(pol2).*pol1`.
+    # If inputs ARE conjugated (conj==true), compute `conj.(pol2).*pol1`.
+    bc_conj = Broadcast.broadcasted(conj, src.preints[2-doconj])
+    bc_cross = Broadcast.broadcasted(*, src.preints[1+doconj], bc_conj)
+    bc_scale = Broadcast.broadcasted(/, bc_cross, scaling)
+    Base.reducedim!(+, dst.cross4d, Broadcast.instantiate(bc_scale))
     dst
 end
 
