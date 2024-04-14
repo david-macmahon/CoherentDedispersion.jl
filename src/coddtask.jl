@@ -23,7 +23,7 @@ function _coddtask(pqin, pqout; f0j, dfj, dm, codd_plan, upchan_plan)
             # Send downstream
             produce!(pqout) do cpb
                 fill!(cpb, 0)
-                detect!(cpb, cvb)
+                detect!(cpb, cvb; doconj=(dfj<0))
                 coddsynchronize(cpb) # Synchronize if cpb needs it
                 return (; fbname, fbheader, data=cpb)
             end
