@@ -71,12 +71,21 @@ function create_poolqueues_plans(ntpi, nfpc, nint, ntpo, nchan;
                                  N=2, use_cuda=CUDA.functional())
     # cvpq = CPU Voltage PoolQueue
     cvpq = CODDVoltagePQ(N) do
-        CODDVoltageBuffer(Array, ntpi, nfpc, nint, ntpo, nchan)
+        cvb = CODDVoltageBuffer(Array, ntpi, nfpc, nint, ntpo, nchan)
+        if use_cuda
+            foreach(pol->Mem.pin(pol), cvb.inputs)
+        end
+        cvb
     end
 
     # cppq = CPU Power PoolQueue
     cppq = CODDPowerPQ(N) do
-        CODDPowerBuffer(Array, nfpc, nchan, ntpo)
+        cpb = CODDPowerBuffer(Array, nfpc, nchan, ntpo)
+        if use_cuda
+            foreach(pol->Mem.pin(pol), cpb.autos4d)
+            Mem.pin(cpb.cross4d)
+        end
+        cpb
     end
 
     if use_cuda
