@@ -56,10 +56,20 @@ function sumdiff!(a::AbstractArray, b::AbstractArray)
     end
 end
 
-function sumdiff!(a::CuArray, b::CuArray)
-    # This is a bit of a hack.  This function should be made into a kernel!
-    a .+= b
-    b .= a .- (2 .* b) # b = (a+b)-2b = a-b
+function sumdiff_kernel(a, b)
+    i = (blockIdx().x-1) * blockDim().x + threadIdx().x
+
+    if i <= length(a) == length(b)
+        a[i], b[i] = (a[i] + b[i]), (a[i] - b[i])
+    end
+
+    return nothing
+end
+
+function sumdiff!(a::CuArray, b::CuArray;
+                  threads=min(1024, length(a)),
+                  blocks=cld(length(a), threads))
+    @cuda blocks threads sumdiff_kernel(a, b)
     a, b
 end
 
