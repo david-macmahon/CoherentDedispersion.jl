@@ -1,5 +1,5 @@
-const CODDVoltagePQ = PoolQueue{CODDVoltageBuffer, NamedTuple}
-const CODDPowerPQ = PoolQueue{CODDPowerBuffer, NamedTuple}
+const CODDVoltagePQCtor = PoolQueue{CODDVoltageBuffer, NamedTuple}
+const CODDPowerPQCtor = PoolQueue{CODDPowerBuffer, NamedTuple}
 
 # PoolQueues are a bit fickle about Channel{T} vs T
 function create_plans(cvpq::PoolQueue{<:AbstractChannel{CODDVoltageBuffer}})
@@ -70,7 +70,7 @@ CPU/GPU Pipeline:
 function create_poolqueues_plans(ntpi, nfpc, nint, ntpo, nchan;
                                  N=2, use_cuda=CUDA.functional())
     # cvpq = CPU Voltage PoolQueue
-    cvpq = CODDVoltagePQ(N) do
+    cvpq = CODDVoltagePQCtor(N) do
         cvb = CODDVoltageBuffer(Array, ntpi, nfpc, nint, ntpo, nchan)
         if use_cuda
             foreach(pol->Mem.pin(pol), cvb.inputs)
@@ -79,7 +79,7 @@ function create_poolqueues_plans(ntpi, nfpc, nint, ntpo, nchan;
     end
 
     # cppq = CPU Power PoolQueue
-    cppq = CODDPowerPQ(N) do
+    cppq = CODDPowerPQCtor(N) do
         cpb = CODDPowerBuffer(Array, nfpc, nchan, ntpo)
         if use_cuda
             foreach(pol->Mem.pin(pol), cpb.autos4d)
@@ -90,12 +90,12 @@ function create_poolqueues_plans(ntpi, nfpc, nint, ntpo, nchan;
 
     if use_cuda
         # gvpq = GPU Voltage PoolQueue
-        gvpq = CODDVoltagePQ(N) do
+        gvpq = CODDVoltagePQCtor(N) do
             CODDVoltageBuffer(CuArray, ntpi, nfpc, nint, ntpo, nchan)
         end
 
         # gppq = GPU Power PoolQueue
-        gppq = CODDPowerPQ(N) do
+        gppq = CODDPowerPQCtor(N) do
             CODDPowerBuffer(CuArray, nfpc, nchan, ntpo)
         end
 
