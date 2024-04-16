@@ -180,7 +180,10 @@ function create_pipeline(rawfiles::AbstractVector, dm;
 end
 
 function _create_tasks(pipeline::CODDPipelineCPU, blks;
-                      fbname, fbheader, f0j, dfj, progress=false)
+                      fbname, fbheader, f0j, dfj, progress=false,
+                      dostokes::Bool=true,
+                      doconj::Bool=dfj<0,
+                      doscale::Bool=true)
     dm   = pipeline.cpsz.dm
     ntpi = pipeline.cpsz.ntpi
     nfpc = pipeline.cpsz.nfpc
@@ -194,7 +197,8 @@ function _create_tasks(pipeline::CODDPipelineCPU, blks;
 
     coddtask = errormonitor(
         Threads.@spawn _coddtask(pipeline.cvpq, pipeline.cppq; f0j, dfj, dm,
-                                 pipeline.codd_plan, pipeline.upchan_plan)
+                                 pipeline.codd_plan, pipeline.upchan_plan,
+                                 dostokes, doconj, doscale)
     )
 
     outputtask = errormonitor(
@@ -205,7 +209,10 @@ function _create_tasks(pipeline::CODDPipelineCPU, blks;
 end
 
 function _create_tasks(pipeline::CODDPipelineGPU, blks;
-                      fbname, fbheader, f0j, dfj, progress=false)
+                      fbname, fbheader, f0j, dfj, progress=false,
+                      dostokes::Bool=true,
+                      doconj::Bool=dfj<0,
+                      doscale::Bool=true)
     dm   = pipeline.cpsz.dm
     ntpi = pipeline.cpsz.ntpi
     nfpc = pipeline.cpsz.nfpc
@@ -223,7 +230,8 @@ function _create_tasks(pipeline::CODDPipelineGPU, blks;
 
     coddtask = errormonitor(
         Threads.@spawn _coddtask(pipeline.gvpq, pipeline.gppq; f0j, dfj, dm,
-                                 pipeline.codd_plan, pipeline.upchan_plan)
+                                 pipeline.codd_plan, pipeline.upchan_plan,
+                                 dostokes, doconj, doscale)
     )
 
     dtohtask = errormonitor(
@@ -238,8 +246,12 @@ function _create_tasks(pipeline::CODDPipelineGPU, blks;
 end
 
 function start_pipeline(pipeline, blks::AbstractVector{<:AbstractArray};
-                        fbname, fbheader, f0j, dfj, progress=false)
-    tasks = _create_tasks(pipeline, blks; fbname, fbheader, f0j, dfj, progress)
+                        fbname, fbheader, f0j, dfj, progress=false,
+                        dostokes::Bool=true,
+                        doconj::Union{Nothing,Bool}=nothing,
+                        doscale::Bool=true)
+    tasks = _create_tasks(pipeline, blks; fbname, fbheader, f0j, dfj, progress,
+                          dostokes, doconj=something(doconj, dfj<0), doscale)
 
     available = Threads.nthreads()
     desired = length(tasks) + 1 # +1 for main thread
@@ -251,7 +263,10 @@ function start_pipeline(pipeline, blks::AbstractVector{<:AbstractArray};
 end
 
 function start_pipeline(pipeline, rawfiles::AbstractVector{<:AbstractString};
-                        outdir=".", progress=false)
+                        outdir=".", progress=false,
+                        dostokes::Bool=true,
+                        doconj::Union{Nothing,Bool}=nothing,
+                        doscale::Bool=true)
     dm   = pipeline.cpsz.dm
     nfpc = pipeline.cpsz.nfpc
     nint = pipeline.cpsz.nint
@@ -310,21 +325,30 @@ function start_pipeline(pipeline, rawfiles::AbstractVector{<:AbstractString};
     end
 
     # TODO Return blks as well so that caller can finalize them upon completion?
-    start_pipeline(pipeline, blks; fbname, fbheader, f0j, dfj, progress)
+    start_pipeline(pipeline, blks; fbname, fbheader, f0j, dfj, progress,
+                   dostokes, doconj, doscale)
 end
 
 # TODO Return empty String rather than nothing when tasks in empty?
 function run_pipeline(pipeline, blks::AbstractVector{<:AbstractArray};
-                      fbname, fbheader, f0j, dfj, progress=true)
-    tasks = start_pipeline(pipeline, blks; fbname, fbheader, f0j, dfj, progress)
+                      fbname, fbheader, f0j, dfj, progress=true,
+                      dostokes::Bool=true,
+                      doconj::Union{Nothing,Bool}=nothing,
+                      doscale::Bool=true)
+    tasks = start_pipeline(pipeline, blks; fbname, fbheader, f0j, dfj,
+                           progress, dostokes, doconj, doscale)
     # TODO Finalize blks after completion?
     isempty(tasks) ? nothing : fetch(last(tasks))
 end
 
 # TODO Return empty String rather than nothing when tasks in empty?
 function run_pipeline(pipeline, rawfiles::AbstractVector{<:AbstractString};
-                      outdir=".", progress=true)
-    tasks = start_pipeline(pipeline, rawfiles; outdir, progress)
+                      outdir=".", progress=true,
+                      dostokes::Bool=true,
+                      doconj::Union{Nothing,Bool}=nothing,
+                      doscale::Bool=true)
+    tasks = start_pipeline(pipeline, rawfiles; outdir, progress,
+                           dostokes, doconj, doscale)
     # TODO Finalize blks after completion?
     isempty(tasks) ? nothing : fetch(last(tasks))
 end

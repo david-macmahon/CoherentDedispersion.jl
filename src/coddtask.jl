@@ -1,4 +1,5 @@
-function _coddtask(pqin, pqout; f0j, dfj, dm, codd_plan, upchan_plan)
+function _coddtask(pqin, pqout; f0j, dfj, dm, codd_plan, upchan_plan,
+                   dostokes::Bool=true, doconj::Bool=dfj<0, doscale=true)
     # While non-empty items keep coming in
     while true
         consume!(pqin) do item::NamedTuple
@@ -21,7 +22,7 @@ function _coddtask(pqin, pqout; f0j, dfj, dm, codd_plan, upchan_plan)
             # Send downstream
             produce!(pqout) do cpb
                 fill!(cpb, 0)
-                detect!(cpb, cvb; doconj=(dfj<0))
+                detect!(cpb, cvb; dostokes, doconj, doscale)
                 coddsynchronize(cpb) # Synchronize if cpb needs it
                 return (; data=cpb)
             end

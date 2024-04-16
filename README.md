@@ -73,6 +73,21 @@ By default, `run_pipeline` displays a progress bar as processing progresses, but
 `start_pipeline` does not.  This can be controlled explicitly by passing the
 keyword argument `progress=true` or `progress=false` to either function.
 
+Both `start_pipeline` and `run_pipeline` support additional keyword arguments
+that control the behavior of the detection process:
+
+* `dostokes` - `true`/`false` value indicating whether to compute Stokes
+               parameters (`true`, default) or cross polarization products
+               (`false`).
+* `doconj` - `true`/`false`/`nothing` value indicating whether to negate Stokes
+             V/conjugate the cross polarization products (`true`
+             negates/conjugates, `false` does not) or to negate/conjugate only
+             when `OBSBW` is negative (`nothing`, default).
+* `doscale`  - `true`/`false` value indicating whether to scale the outputs to
+               match the scaling performed by `rawspec` (another GUPPI RAW to
+               Filterbank tool).  `true` (default) scales to match `rawspec`;
+               `false` does not.
+
 ## Starting the pipeline
 
 `start_pipeline` starts the tasks and returns a NamedTuple of the tasks without
