@@ -107,7 +107,7 @@ same scan may be processed without overwriting the same output file.
 
 # Putting it all together
 
-Here is a short script that shows how to use `CoherentDedispersion`` to
+Here is a short script that shows how to use `CoherentDedispersion` to
 dedisperse a list of GUPPI RAW files (obtained from an unshown user-supplied
 function) using a dispersion measure of `123.456`, upchannelizing by a factor of
 `16`, and integrating `128` time samples (i.e. upchannelized spectra) after
