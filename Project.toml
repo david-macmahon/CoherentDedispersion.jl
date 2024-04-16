@@ -13,4 +13,4 @@ ProgressBars = "49802e3a-d2f1-5c88-81d8-b72133a6f568"
 RadioInterferometry = "d7a65883-3b66-4fe4-a274-f0f417c4cddf"
 
 [compat]
-Blio = ">=0.6.4"
+Blio = ">=0.6.5"

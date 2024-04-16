@@ -13,8 +13,8 @@ DMVELA = 67.771
 #nfpc, nint = 1, 4 # Desired production values
 nfpc, nint = 16, 64 # Test values
 
-pqs, tasks = create_pipeline(rawfiles, DMVELA; nfpc, nint, outdir=".")
+pipeline = create_pipeline(rawfiles, DMVELA; nfpc, nint)#, use_cuda=CUDA.functional())
 
-fbname = fetch(last(tasks))
+fbname = run_pipeline(pipeline, rawfiles; outdir=".")
 @info "saved output to $fbname"
 @info "done"

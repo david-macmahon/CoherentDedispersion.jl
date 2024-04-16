@@ -4,12 +4,12 @@ using FFTW, LinearAlgebra, Blio, PoolQueues, CUDA, CUDA.CUFFT
 using RadioInterferometry # For guppifixup.jl
 using ProgressBars
 
+# TODO Not all of these need to be exported
 export KDM, KDM32, dispdelay, dispfreq
 export CODDVoltageBuffer, copyraw!
 export CODDPowerBuffer, detect!
 export H!
-export compute_ntimes
-export create_pipeline
+export create_pipeline, start_pipeline, run_pipeline
 
 """
 `KDM` is the *dispersion constant* in units of `MHz² pc⁻¹ cm³ s` expressed as a
@@ -26,9 +26,9 @@ const KDM32 = 4.148808f3
 include("chirp.jl")
 include("dispdelay.jl")
 include("dispfreq.jl")
+include("sizing.jl")
 include("voltagebuffer.jl")
 include("powerbuffer.jl")
-include("sizing.jl")
 
 include("inputtask.jl")
 include("coddtask.jl")

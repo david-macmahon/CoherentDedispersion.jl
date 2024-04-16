@@ -9,9 +9,8 @@ function c2ri(c::AbstractArray{<:Complex})
     reinterpret(reshape, real(eltype(c)), c)
 end
 
-function _outputtask(pqin)
-    local fbname
-    local fbio
+function _outputtask(pqin; fbname, fbheader)
+    fbio = devnull
     local writebuf
     local a11_writebufvw
     local a22_writebufvw
@@ -29,10 +28,9 @@ function _outputtask(pqin)
             nfpc, nchan, ntpo = size(cpb.autos[1])
 
             # Open output file and allocate write buffer, if needed
-            if !@isdefined fbname
-                fbname = item.fbname
+            if !@isdefined writebuf
                 fbio = open(fbname, "w")
-                write(fbio, item.fbheader)
+                write(fbio, fbheader)
 
                 writebuf = similar(cpb.autos[1], nfpc, nchan, 4*ntpo)
                 a11_writebufvw = @view writebuf[:,:,1:4:end]
@@ -55,6 +53,8 @@ function _outputtask(pqin)
             return cpb
         end === nothing && break
     end
+
+    close(fbio)
 
     @info "outputtask done"
 

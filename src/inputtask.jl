@@ -1,4 +1,4 @@
-function _inputtask(blks, pqout; ntpi, dtpi, fbname, fbheader)
+function _inputtask(blks, pqout; ntpi, dtpi)
     # Sanity check dtpi vs ntpi
     dtpi > ntpi && error("dtpi must not exceed ntpi")
 
@@ -12,7 +12,7 @@ function _inputtask(blks, pqout; ntpi, dtpi, fbname, fbheader)
         # Send data downstream
         produce!(pqout) do cvb
             copyraw!(cvb, blks, t)
-            return (; fbname, fbheader, data=cvb)
+            return (; data=cvb)
         end
     end
 

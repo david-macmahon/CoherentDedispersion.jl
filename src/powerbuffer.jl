@@ -28,8 +28,16 @@ function CODDPowerBuffer(::Type{T}, nfpc, nchan, ntpo) where {T<:AbstractArray}
     fill!(CODDPowerBuffer(autos4d, cross4d, autos, cross), 0)
 end
 
+function CODDPowerBuffer(::Type{T}, sz::CODDPipelineSize) where {T<:AbstractArray}
+    CODDPowerBuffer(T, sz.nfpc, sz.nchan, sz.ntpo)
+end
+
 function CODDPowerBuffer(nfpc, nchan, ntpo)
     CODDPowerBuffer(Array, nfpc, nchan, ntpo)
+end
+
+function CODDPowerBuffer(sz::CODDPipelineSize)
+    CODDPowerBuffer(Array, sz)
 end
 
 function Base.fill!(dst::CODDPowerBuffer, x)

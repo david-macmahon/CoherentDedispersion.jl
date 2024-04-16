@@ -5,9 +5,7 @@ function _coddtask(pqin, pqout; f0j, dfj, dm, codd_plan, upchan_plan)
             # If item is empty, return nothing
             isempty(item) && return nothing
 
-            # Get fields from item
-            fbname = item.fbname
-            fbheader = item.fbheader
+            # Get CODDVoltageBuffer from item
             cvb = item.data
 
             # Coherently dedisperse
@@ -25,7 +23,7 @@ function _coddtask(pqin, pqout; f0j, dfj, dm, codd_plan, upchan_plan)
                 fill!(cpb, 0)
                 detect!(cpb, cvb; doconj=(dfj<0))
                 coddsynchronize(cpb) # Synchronize if cpb needs it
-                return (; fbname, fbheader, data=cpb)
+                return (; data=cpb)
             end
 
             # Return cvb for recycling

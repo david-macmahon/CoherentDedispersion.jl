@@ -1,6 +1,30 @@
 const CODDVoltagePQCtor = PoolQueue{CODDVoltageBuffer, NamedTuple}
 const CODDPowerPQCtor = PoolQueue{CODDPowerBuffer, NamedTuple}
 
+struct CODDPipelineCPU{CV<:AbstractChannel{<:CODDVoltageBuffer},
+                       CP<:AbstractChannel{<:CODDPowerBuffer},
+                       P2<:AbstractFFTs.Plan, P4<:AbstractFFTs.Plan}
+    cvpq::PoolQueue{CV, Channel{NamedTuple}}
+    cppq::PoolQueue{CP, Channel{NamedTuple}}
+    codd_plan::P2
+    upchan_plan::P4
+    cpsz::CODDPipelineSize
+end
+
+struct CODDPipelineGPU{CV<:AbstractChannel{<:CODDVoltageBuffer},
+                       GV<:AbstractChannel{<:CODDVoltageBuffer},
+                       CP<:AbstractChannel{<:CODDPowerBuffer},
+                       GP<:AbstractChannel{<:CODDPowerBuffer},
+                       P2<:AbstractFFTs.Plan, P4<:AbstractFFTs.Plan}
+    cvpq::PoolQueue{CV, Channel{NamedTuple}}
+    gvpq::PoolQueue{GV, Channel{NamedTuple}}
+    gppq::PoolQueue{GP, Channel{NamedTuple}}
+    cppq::PoolQueue{CP, Channel{NamedTuple}}
+    codd_plan::P2
+    upchan_plan::P4
+    cpsz::CODDPipelineSize
+end
+
 # PoolQueues are a bit fickle about Channel{T} vs T
 function create_plans(cvpq::PoolQueue{<:AbstractChannel{CODDVoltageBuffer}})
     cvb = acquire!(cvpq)
@@ -11,15 +35,70 @@ function create_plans(cvpq::PoolQueue{<:AbstractChannel{CODDVoltageBuffer}})
     (; codd_plan, upchan_plan)
 end
 
-"""
-    create_poolqueues_plans(ntpi, nfpc, nint, ntpo, nchan;
-                            N=2, use_cuda=CUDA.functional())
+# CPU-only pipeline
+function _create_pipeline(cpsz::CODDPipelineSize, _use_cuda::Val{false}; N=2)
+    # cvpq = CPU Voltage PoolQueue
+    cvpq = CODDVoltagePQCtor(N) do
+        CODDVoltageBuffer(Array, cpsz)
+    end
 
-Create the PoolQueues and FFT plans for a CoherentDedispersion pipeline.  If
-`use_cuda` is `false`, PoolQueues and FFT plans for a CPU-only pipeline will be
-created.  If `use_cuda` is true (and CUDA is functional), PoolQueues and FFT
-plans for a CPU/GPU pipeline will be created.  `N` is the number of items to
-populate each PoolQueue with.
+    codd_plan, upchan_plan = create_plans(cvpq)
+
+    # cppq = CPU Power PoolQueue
+    cppq = CODDPowerPQCtor(N) do
+        CODDPowerBuffer(Array, cpsz)
+    end
+
+    CODDPipelineCPU(cvpq, cppq, codd_plan, upchan_plan, cpsz)
+end
+
+# CPU/GPU pipeline
+function _create_pipeline(cpsz::CODDPipelineSize, _use_cuda::Val{true}; N=2)
+    # cvpq = CPU Voltage PoolQueue
+    cvpq = CODDVoltagePQCtor(N) do
+        cvb = CODDVoltageBuffer(Array, cpsz)
+        for pol in cvb.inputs
+            Mem.pin(pol)
+        end
+        cvb
+    end
+
+    # gvpq = GPU Voltage PoolQueue
+    gvpq = CODDVoltagePQCtor(N) do
+        CODDVoltageBuffer(CuArray, cpsz)
+    end
+
+    codd_plan, upchan_plan = create_plans(gvpq)
+
+    # gppq = GPU Power PoolQueue
+    gppq = CODDPowerPQCtor(N) do
+        CODDPowerBuffer(CuArray, cpsz)
+    end
+
+    # cppq = CPU Power PoolQueue
+    cppq = CODDPowerPQCtor(N) do
+        cpb = CODDPowerBuffer(Array, cpsz)
+        for pol in cpb.autos4d
+            Mem.pin(pol)
+        end
+        Mem.pin(cpb.cross4d)
+        cpb
+    end
+
+    CODDPipelineGPU(cvpq, gvpq, gppq, cppq, codd_plan, upchan_plan, cpsz)
+end
+
+"""
+    create_pipeline(grh::GuppiRaw.Header, dm;
+                    nfpc=1, nint=4, N=2, use_cuda=CUDA.functional())
+
+Create the PoolQueues and FFT plans for a CoherentDedispersion pipeline based on
+sizing info `grh`, `dm` (the dispersion measure), `nfpc` (the number of fine
+channels per coarse channel), and `nint` (the number of time samples to
+integrate).  If `use_cuda` is `false`, PoolQueues and FFT plans for a
+CPU-only pipeline will be created.  If `use_cuda` is true (and CUDA is
+functional), PoolQueues and FFT plans for a CPU/GPU pipeline will be created.
+`N` is the number of items to populate each PoolQueue with.
 
 # Extended Help
 
@@ -67,96 +146,8 @@ CPU/GPU Pipeline:
     V
     Output Task (writes Filterbank files)
 """
-function create_poolqueues_plans(ntpi, nfpc, nint, ntpo, nchan;
-                                 N=2, use_cuda=CUDA.functional())
-    # cvpq = CPU Voltage PoolQueue
-    cvpq = CODDVoltagePQCtor(N) do
-        cvb = CODDVoltageBuffer(Array, ntpi, nfpc, nint, ntpo, nchan)
-        if use_cuda
-            foreach(pol->Mem.pin(pol), cvb.inputs)
-        end
-        cvb
-    end
-
-    # cppq = CPU Power PoolQueue
-    cppq = CODDPowerPQCtor(N) do
-        cpb = CODDPowerBuffer(Array, nfpc, nchan, ntpo)
-        if use_cuda
-            foreach(pol->Mem.pin(pol), cpb.autos4d)
-            Mem.pin(cpb.cross4d)
-        end
-        cpb
-    end
-
-    if use_cuda
-        # gvpq = GPU Voltage PoolQueue
-        gvpq = CODDVoltagePQCtor(N) do
-            CODDVoltageBuffer(CuArray, ntpi, nfpc, nint, ntpo, nchan)
-        end
-
-        # gppq = GPU Power PoolQueue
-        gppq = CODDPowerPQCtor(N) do
-            CODDPowerBuffer(CuArray, nfpc, nchan, ntpo)
-        end
-
-        codd_plan, upchan_plan = create_plans(gvpq)
-
-        return (; cvpq, gvpq, gppq, cppq), codd_plan, upchan_plan
-    else
-        codd_plan, upchan_plan = create_plans(cvpq)
-
-        return (; cvpq, cppq), codd_plan, upchan_plan
-    end
-end
-
-function create_tasks(blks, pqs;
-                      ntpi, dtpi, fbname, fbheader,
-                      f0j, dfj, dm, codd_plan, upchan_plan,
-                      use_cuda=CUDA.functional())
-    inputtask = errormonitor(
-        Threads.@spawn _inputtask(blks, pqs.cvpq;
-                                  ntpi, dtpi, fbname, fbheader)
-    )
-
-    pqin, pqout = if use_cuda
-        pqs.gvpq, pqs.gppq
-    else
-        pqs.cvpq, pqs.cppq
-    end
-    coddtask = errormonitor(
-        Threads.@spawn _coddtask(pqin, pqout;
-                                 f0j, dfj, dm, codd_plan, upchan_plan)
-    )
-
-    outputtask = errormonitor(
-        Threads.@spawn _outputtask(pqs.cppq)
-    )
-
-    tasks = if use_cuda
-        htodtask = errormonitor(
-            Threads.@spawn _copytask(pqs.cvpq, pqs.gvpq; id="HtoD")
-        )
-
-        dtohtask = errormonitor(
-            Threads.@spawn _copytask(pqs.gppq, pqs.cppq; id="DtoH")
-        )
-
-        (; inputtask, htodtask, coddtask, dtohtask, outputtask)
-    else
-        (; inputtask, coddtask, outputtask)
-    end
-
-    available = Threads.nthreads()
-    desired = length(tasks) + 1 # +1 for main thread
-    if available < desired
-        @warn "only have $available thread(s) for $desired tasks"
-    end
-
-    return tasks
-end
-
-function create_pipeline(rawfiles, dm;
-                         nfpc=1, nint=4, outdir=".", use_cuda=CUDA.functional())
+function create_pipeline(grh::GuppiRaw.Header, dm;
+                         nfpc=1, nint=4, N=2, use_cuda=CUDA.functional())
     # Validate use_cuda (in case it is passed explicitly)
     if !CUDA.functional()
         @warn "CUDA is not functional, using CPU-only"
@@ -167,22 +158,117 @@ function create_pipeline(rawfiles, dm;
         @info "CUDA is functional and will be used"
     end
 
-    # Load RAW files (reads headers, mmap's data blocks).  Use explicitly typed
-    # Vector for datablocks so we don't have to refine later.
-    hdrs, blks = GuppiRaw.load(rawfiles; datablocks=Array{Complex{Int8},3}[]);
+    cpsz = CODDPipelineSize(grh, dm; nfpc, nint)
+
+    if !isvalid(cpsz)
+        error("invalid sizing info detected")
+    end
+
+    # Create actual pipeline (i.e. PoolQueues and FFT plans)
+    _create_pipeline(cpsz, Val(use_cuda); N)
+end
+
+function create_pipeline(rawfile::AbstractString, dm;
+                         nfpc=1, nint=4, N=2, use_cuda=CUDA.functional())
+    grh = read(rawfile, GuppiRaw.Header)
+    create_pipeline(grh, dm; nfpc, nint, N, use_cuda)
+end
+
+function create_pipeline(rawfiles::AbstractVector, dm;
+                         nfpc=1, nint=4, N=2, use_cuda=CUDA.functional())
+    create_pipeline(first(rawfiles), dm; nfpc, nint, N, use_cuda)
+end
+
+function _create_tasks(pipeline::CODDPipelineCPU, blks;
+                      fbname, fbheader, f0j, dfj)
+    dm   = pipeline.cpsz.dm
+    ntpi = pipeline.cpsz.ntpi
+    nfpc = pipeline.cpsz.nfpc
+    nint = pipeline.cpsz.nint
+    ntpo = pipeline.cpsz.ntpo
+    dtpi = nfpc * nint * ntpo
+
+    inputtask = errormonitor(
+        Threads.@spawn _inputtask(blks, pipeline.cvpq; ntpi, dtpi)
+    )
+
+    coddtask = errormonitor(
+        Threads.@spawn _coddtask(pipeline.cvpq, pipeline.cppq; f0j, dfj, dm,
+                                 pipeline.codd_plan, pipeline.upchan_plan)
+    )
+
+    outputtask = errormonitor(
+        Threads.@spawn _outputtask(pipeline.cppq; fbname, fbheader)
+    )
+
+    (; inputtask, coddtask, outputtask)
+end
+
+function _create_tasks(pipeline::CODDPipelineGPU, blks;
+                      fbname, fbheader, f0j, dfj)
+    dm   = pipeline.cpsz.dm
+    ntpi = pipeline.cpsz.ntpi
+    nfpc = pipeline.cpsz.nfpc
+    nint = pipeline.cpsz.nint
+    ntpo = pipeline.cpsz.ntpo
+    dtpi = nfpc * nint * ntpo
+
+    inputtask = errormonitor(
+        Threads.@spawn _inputtask(blks, pipeline.cvpq; ntpi, dtpi)
+    )
+
+    htodtask = errormonitor(
+        Threads.@spawn _copytask(pipeline.cvpq, pipeline.gvpq; id="HtoD")
+    )
+
+    coddtask = errormonitor(
+        Threads.@spawn _coddtask(pipeline.gvpq, pipeline.gppq; f0j, dfj, dm,
+                                 pipeline.codd_plan, pipeline.upchan_plan)
+    )
+
+    dtohtask = errormonitor(
+        Threads.@spawn _copytask(pipeline.gppq, pipeline.cppq; id="DtoH")
+    )
+
+    outputtask = errormonitor(
+        Threads.@spawn _outputtask(pipeline.cppq; fbname, fbheader)
+    )
+
+    (; inputtask, htodtask, coddtask, dtohtask, outputtask)
+end
+
+function start_pipeline(pipeline, blks::AbstractVector{<:AbstractArray};
+                        fbname, fbheader, f0j, dfj)
+    tasks = _create_tasks(pipeline, blks; fbname, fbheader, f0j, dfj)
+
+    available = Threads.nthreads()
+    desired = length(tasks) + 1 # +1 for main thread
+    if available < desired
+        @warn "only have $available thread(s) for $desired tasks" maxlog=1
+    end
+
+    tasks
+end
+
+function start_pipeline(pipeline, rawfiles::AbstractVector{<:AbstractString};
+                        outdir=".")
+    dm   = pipeline.cpsz.dm
+    nfpc = pipeline.cpsz.nfpc
+    nint = pipeline.cpsz.nint
+
+    # Load RAW files (reads headers, mmap's data blocks), but only if sizing
+    # matches.  For now we require all fields to be equal, but this may be
+    # loosened in the future to allow `dm` to vary (downward).
+    hdrs, blks = GuppiRaw.load(rawfiles) do grh
+        pipeline.cpsz === CODDPipelineSize(grh, dm; nfpc, nint)
+    end
+
+    # If hdrs is empty, return empty task list indicating problem (e.g. size
+    # mismatch)
+    isempty(hdrs) && return (;)
 
     # Fixup first header
-    CoherentDedispersion.fixup!(hdrs[1])
-
-    npol, = size(blks[1], 1)
-    npol == 2 || error("only dual-pol files are supported")
-
-    nchan = size(blks[1], 3)
-
-    # Compute ntime values
-    ntpi, ntpo = compute_ntimes(hdrs[1], dm; nfpc, nint)
-    # dtpi is number of time samples to advance per block (ntpi-overlap)
-    dtpi = nfpc * nint * ntpo
+    fixup!(hdrs[1])
 
     # Get freq info from header
     obsfreq = hdrs[1][:obsfreq]
@@ -192,11 +278,7 @@ function create_pipeline(rawfiles, dm;
     f0j = obsfreq - obsbw/2
     dfj = obsbw / (hdrs[1].obsnchan / get(hdrs[1], :nants, 1))
 
-    # Create PoolQueues and FFT plans
-    pqs,
-    codd_plan,
-    upchan_plan = create_poolqueues_plans(ntpi, nfpc, nint, ntpo, nchan; use_cuda)
-
+    # TODO Make function to get (fbname, fbheader)
     # Create filterbank filename from name of first rawfile
     rawbase = basename(first(rawfiles))
     fbbase = replace(rawbase, r"\d\d\d\d.raw$"=>"rawcodd.0000.fil")
@@ -224,15 +306,22 @@ function create_pipeline(rawfiles, dm;
         fbheader[:src_dej] = dms2deg(hdrs[1][:dec_str])
     end
 
-    # TODO create pqs and plans inside create_tasks
-    tasks = create_tasks(blks, pqs;
-                         ntpi, dtpi, fbname, fbheader,
-                         f0j, dfj, dm, codd_plan, upchan_plan, use_cuda)
-
-    (pqs, tasks)
+    # TODO Return blks as well so that caller can finalize them upon completion?
+    start_pipeline(pipeline, blks; fbname, fbheader, f0j, dfj)
 end
 
-function create_pipeline(rawfile::AbstractString, dm;
-                         nfpc=1, nint=4, outdir=".", use_cuda=CUDA.functional())
-    create_pipeline([rawfile], dm; nfpc, nint, outdir, use_cuda)
+# TODO Return empty String rather than nothing when tasks in empty?
+function run_pipeline(pipeline, blks::AbstractVector{<:AbstractArray};
+                      fbname, fbheader, f0j, dfj)
+    tasks = start_pipeline(pipeline, blks; fbname, fbheader, f0j, dfj)
+    # TODO Finalize blks after completion?
+    isempty(tasks) ? nothing : fetch(last(tasks))
+end
+
+# TODO Return empty String rather than nothing when tasks in empty?
+function run_pipeline(pipeline, rawfiles::AbstractVector{<:AbstractString};
+                      outdir=".")
+    tasks = start_pipeline(pipeline, rawfiles; outdir)
+    # TODO Finalize blks after completion?
+    isempty(tasks) ? nothing : fetch(last(tasks))
 end

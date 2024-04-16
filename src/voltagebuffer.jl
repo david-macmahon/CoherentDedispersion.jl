@@ -27,8 +27,16 @@ function CODDVoltageBuffer(::Type{T}, ntpi, nfpc, nint, ntpo, nchan) where {T<:A
     CODDVoltageBuffer(inputs, upchans, preints)
 end
 
+function CODDVoltageBuffer(::Type{T}, sz::CODDPipelineSize) where {T<:AbstractArray}
+    CODDVoltageBuffer(T, sz.ntpi, sz.nfpc, sz.nint, sz.ntpo, sz.nchan)
+end
+
 function CODDVoltageBuffer(ntpi, nfpc, nint, ntpo, nchan)
     CODDVoltageBuffer(Matrix, ntpi, nfpc, nint, ntpo, nchan)
+end
+
+function CODDVoltageBuffer(sz::CODDPipelineSize)
+    CODDVoltageBuffer(Matrix, sz)
 end
 
 function copyraw!(dst::CODDVoltageBuffer,
@@ -57,6 +65,7 @@ function copyraw!(dst::CODDVoltageBuffer,
     end
 
     # Copy from second block, if needed
+    # TODO Make this copy from as many blocks as needed (for ntpi > blocsize)
     if n > 0
         dstidxs = CartesianIndices((ntime-n+1:ntime, axchan))
         if b0+2 <= nblks
