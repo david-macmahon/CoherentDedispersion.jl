@@ -1,7 +1,7 @@
 name = "CoherentDedispersion"
 uuid = "7080b7d2-8992-493a-ad79-22ab2a732ff5"
 authors = ["David MacMahon <davidm@astro.berkeley.edu> and contributors"]
-version = "0.4.0"
+version = "0.5.0"
 
 [deps]
 Blio = "87855aa7-8b24-49b4-b316-97c011f78d17"
