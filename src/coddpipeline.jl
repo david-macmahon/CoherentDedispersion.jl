@@ -284,7 +284,7 @@ function start_pipeline(pipeline, rawfiles::AbstractVector{<:AbstractString};
     # Remove `.raw` extension (if present)
     fbbase = replace(rawbase, r"\.raw$"=>"")
     # Concatenate `.rawcodd.0000.fil`
-    fbname *= ".rawcodd.0000.fil"
+    fbbase *= ".rawcodd.0000.fil"
     fbname = joinpath(outdir, fbbase)
 
     # Create filterbank header (with values updated based on nfpc and nint)
