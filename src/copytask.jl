@@ -22,6 +22,6 @@ function _copytask(pqin, pqout; id)
     # Send end of input indicator downstream
     produce!(pqout, (;))
 
-    @info "copytask $id done"
+    @debug "copytask $id done"
     return nothing
 end

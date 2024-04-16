@@ -34,6 +34,6 @@ function _coddtask(pqin, pqout; f0j, dfj, dm, codd_plan, upchan_plan)
     # Send end of input indicator downstream
     produce!(pqout, (;))
 
-    @info "coddtask done"
+    @debug "coddtask done"
     return nothing
 end

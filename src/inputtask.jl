@@ -20,6 +20,6 @@ function _inputtask(blks, pqout; ntpi, dtpi, progress=false)
     # Send end of input indicator downstream
     produce!(pqout, (;))
 
-    @info "inputtask done"
+    @debug "inputtask done"
     return nothing
 end

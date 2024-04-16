@@ -56,7 +56,7 @@ function _outputtask(pqin; fbname, fbheader)
 
     close(fbio)
 
-    @info "outputtask done"
+    @debug "outputtask done"
 
     return fbname
 end
