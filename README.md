@@ -69,6 +69,10 @@ responsible for waiting for completion before calling `start_pipeline` again.
 `run_pipeline` does wait for completion so the caller may call `run_pipeline`
 again as soon as it returns.
 
+By default, `run_pipeline` displays a progress bar as processing progresses, but
+`start_pipeline` does not.  This can be controlled explicitly by passing the
+keyword argument `progress=true` or `progress=false` to either function.
+
 ## Starting the pipeline
 
 `start_pipeline` starts the tasks and returns a NamedTuple of the tasks without
@@ -78,11 +82,19 @@ order", so waiting for the last task (i.e. the `outputtask`) will wait for
 completion of processing all the input files.  Calling `fetch` on the output
 task will wait for completion and return the name of the output Filterbank file.
 
+```julia
+start_pipeline(pipeline, rawfiles; outdir=".", progress=false)
+```
+
 ## Running the pipeline
 
 `run_pipeline` is essentially `start_pipeline` plus a fetch of the last task.
 `run_pipeline` returns the name of the output Filterbank file, but only after
 processing is complete.
+
+```julia
+run_pipeline(pipeline, rawfiles; outdir=".", progress=false)
+```
 
 # Assembling lists of GUPPI RAW filenames
 

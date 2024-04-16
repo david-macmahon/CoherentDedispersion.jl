@@ -180,7 +180,7 @@ function create_pipeline(rawfiles::AbstractVector, dm;
 end
 
 function _create_tasks(pipeline::CODDPipelineCPU, blks;
-                      fbname, fbheader, f0j, dfj)
+                      fbname, fbheader, f0j, dfj, progress=false)
     dm   = pipeline.cpsz.dm
     ntpi = pipeline.cpsz.ntpi
     nfpc = pipeline.cpsz.nfpc
@@ -189,7 +189,7 @@ function _create_tasks(pipeline::CODDPipelineCPU, blks;
     dtpi = nfpc * nint * ntpo
 
     inputtask = errormonitor(
-        Threads.@spawn _inputtask(blks, pipeline.cvpq; ntpi, dtpi)
+        Threads.@spawn _inputtask(blks, pipeline.cvpq; ntpi, dtpi, progress)
     )
 
     coddtask = errormonitor(
@@ -205,7 +205,7 @@ function _create_tasks(pipeline::CODDPipelineCPU, blks;
 end
 
 function _create_tasks(pipeline::CODDPipelineGPU, blks;
-                      fbname, fbheader, f0j, dfj)
+                      fbname, fbheader, f0j, dfj, progress=false)
     dm   = pipeline.cpsz.dm
     ntpi = pipeline.cpsz.ntpi
     nfpc = pipeline.cpsz.nfpc
@@ -214,7 +214,7 @@ function _create_tasks(pipeline::CODDPipelineGPU, blks;
     dtpi = nfpc * nint * ntpo
 
     inputtask = errormonitor(
-        Threads.@spawn _inputtask(blks, pipeline.cvpq; ntpi, dtpi)
+        Threads.@spawn _inputtask(blks, pipeline.cvpq; ntpi, dtpi, progress)
     )
 
     htodtask = errormonitor(
@@ -238,8 +238,8 @@ function _create_tasks(pipeline::CODDPipelineGPU, blks;
 end
 
 function start_pipeline(pipeline, blks::AbstractVector{<:AbstractArray};
-                        fbname, fbheader, f0j, dfj)
-    tasks = _create_tasks(pipeline, blks; fbname, fbheader, f0j, dfj)
+                        fbname, fbheader, f0j, dfj, progress=false)
+    tasks = _create_tasks(pipeline, blks; fbname, fbheader, f0j, dfj, progress)
 
     available = Threads.nthreads()
     desired = length(tasks) + 1 # +1 for main thread
@@ -251,7 +251,7 @@ function start_pipeline(pipeline, blks::AbstractVector{<:AbstractArray};
 end
 
 function start_pipeline(pipeline, rawfiles::AbstractVector{<:AbstractString};
-                        outdir=".")
+                        outdir=".", progress=false)
     dm   = pipeline.cpsz.dm
     nfpc = pipeline.cpsz.nfpc
     nint = pipeline.cpsz.nint
@@ -307,21 +307,21 @@ function start_pipeline(pipeline, rawfiles::AbstractVector{<:AbstractString};
     end
 
     # TODO Return blks as well so that caller can finalize them upon completion?
-    start_pipeline(pipeline, blks; fbname, fbheader, f0j, dfj)
+    start_pipeline(pipeline, blks; fbname, fbheader, f0j, dfj, progress)
 end
 
 # TODO Return empty String rather than nothing when tasks in empty?
 function run_pipeline(pipeline, blks::AbstractVector{<:AbstractArray};
-                      fbname, fbheader, f0j, dfj)
-    tasks = start_pipeline(pipeline, blks; fbname, fbheader, f0j, dfj)
+                      fbname, fbheader, f0j, dfj, progress=true)
+    tasks = start_pipeline(pipeline, blks; fbname, fbheader, f0j, dfj, progress)
     # TODO Finalize blks after completion?
     isempty(tasks) ? nothing : fetch(last(tasks))
 end
 
 # TODO Return empty String rather than nothing when tasks in empty?
 function run_pipeline(pipeline, rawfiles::AbstractVector{<:AbstractString};
-                      outdir=".")
-    tasks = start_pipeline(pipeline, rawfiles; outdir)
+                      outdir=".", progress=true)
+    tasks = start_pipeline(pipeline, rawfiles; outdir, progress)
     # TODO Finalize blks after completion?
     isempty(tasks) ? nothing : fetch(last(tasks))
 end

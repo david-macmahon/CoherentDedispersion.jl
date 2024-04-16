@@ -1,4 +1,4 @@
-function _inputtask(blks, pqout; ntpi, dtpi)
+function _inputtask(blks, pqout; ntpi, dtpi, progress=false)
     # Sanity check dtpi vs ntpi
     dtpi > ntpi && error("dtpi must not exceed ntpi")
 
@@ -8,7 +8,8 @@ function _inputtask(blks, pqout; ntpi, dtpi)
     startidxs = 1:dtpi:(ntime-ntpi+1)
     # Loop through input time samples, sending ntpi time samples each
     # iteration, but only advancing dtpi time samples each iteration.
-    for t in ProgressBar(startidxs)
+    pbar = progress ? ProgressBar : identity
+    for t in pbar(startidxs)
         # Send data downstream
         produce!(pqout) do cvb
             copyraw!(cvb, blks, t)
