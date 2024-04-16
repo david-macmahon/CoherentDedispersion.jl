@@ -59,7 +59,7 @@ The pipeline object returned by `create_pipeline` can be passed to the
 filenames and an optional output directory (which defaults to the current
 directory).  Both `start_pipeline` and `run_pipeline` start the asynchronous
 tasks that perform the dedispersion process and create the output file.
-Generally, `start_pipeline` is more versatile while `run_pipeline` can be more
+Generally, `start_pipeline` is more versatile whereas `run_pipeline` can be more
 convenient for single pipeline applications.
 
 Both `start_pipeline` and `run_pipeline` can be called multiple times with the
@@ -77,7 +77,7 @@ keyword argument `progress=true` or `progress=false` to either function.
 
 `start_pipeline` starts the tasks and returns a NamedTuple of the tasks without
 waiting for the tasks to complete (i.e. the tasks will likely still be running
-after `start_pipeline returns`).  The tasks in the NamedTuple are in "pipeline
+after `start_pipeline` returns).  The tasks in the NamedTuple are in "pipeline
 order", so waiting for the last task (i.e. the `outputtask`) will wait for
 completion of processing all the input files.  Calling `fetch` on the output
 task will wait for completion and return the name of the output Filterbank file.
@@ -96,21 +96,32 @@ processing is complete.
 run_pipeline(pipeline, rawfiles; outdir=".", progress=false)
 ```
 
-# Assembling lists of GUPPI RAW filenames
+# Output filename
 
-Creating the list of GUPPI RAW filenames depends on local directory structure
-and file naming conventions, but typically GUPPI RAW files for multiple scans
-are stored together in the same directory.  The files for a given scan typically
-consist of a common *stem* plus a `.####.raw` extension, where the `####` part
-is a four digit sequence number.
+Currently the output filename is generated from `outdir` (defaults to `"."`) and
+the `basename` of the first filename in the Vector of filenames passed to
+`start_pipeline` or `run_pipeline`.  The `.raw` extension of the input file is
+removed (if present) and `.rawcodd.0000.fil` is concatenated.  The GUPPI RAW
+sequence number (if any) is retained so that individual GUPPI RAW files from the
+same scan may be processed without overwriting the same output file.
 
-## Finding all `.0000.raw` files
+# Putting it all together
 
-Given a directory `dir`, the `.0000.raw` file (i.e. the first file of each
-scan), can be found by using `filter` and `readdir`:
+Here is a short script that shows how to use `CoherentDedispersion`` to
+dedisperse a list of GUPPI RAW files (obtained from an unshown user-supplied
+function) using a dispersion measure of `123.456`, upchannelizing by a factor of
+`16`, and integrating `128` time samples (i.e. upchannelized spectra) after
+detecting, and outputting a Filterbank file in the current directory.
 
 ```julia
-zfiles = filter(endswith(".0000.raw"), readdir(dir))
-```
+using CoherentDedispersion
 
-## Finding all files for a given `.0000.raw` file:
+rawnames = your_function_to_get_list_of_raw_files()
+dm = 123.456
+
+pipeline = create_pipeline(rawfiles, dm; nfpc=16, nint=64)
+fbname = run_pipeline(rawfiles, dm)
+
+@info "saved output to $fbname"
+@info "done"
+```

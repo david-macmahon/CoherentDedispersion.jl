@@ -281,7 +281,10 @@ function start_pipeline(pipeline, rawfiles::AbstractVector{<:AbstractString};
     # TODO Make function to get (fbname, fbheader)
     # Create filterbank filename from name of first rawfile
     rawbase = basename(first(rawfiles))
-    fbbase = replace(rawbase, r"\d\d\d\d.raw$"=>"rawcodd.0000.fil")
+    # Remove `.raw` extension (if present)
+    fbbase = replace(rawbase, r"\.raw$"=>"")
+    # Concatenate `.rawcodd.0000.fil`
+    fbname *= ".rawcodd.0000.fil"
     fbname = joinpath(outdir, fbbase)
 
     # Create filterbank header (with values updated based on nfpc and nint)
