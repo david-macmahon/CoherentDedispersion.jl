@@ -1,20 +1,68 @@
-using CoherentDedispersion
+#!/bin/bash
+#=
+export JULIA_PROJECT=$(dirname $(dirname $(readlink -e "${BASH_SOURCE[0]}")))
+exec julia --color=yes --startup-file=no --threads=auto \
+    -e 'include(popfirst!(ARGS))' "${BASH_SOURCE[0]}" "$@"
+=#
 
-#dir = "/datag/collate_mb/PKS_0277_2018-03-21T07:00/blc06" # Gluster
-#dir = "/mnt_blpc3/datax/scratch/davidm/rawcodd" # NFS (self mounted)
-dir = "/datax/scratch/davidm/rawcodd" # local XFS
+using ArgParse, CoherentDedispersion
 
-rawfile = joinpath(dir, "guppi_58198_27514_685364_J0835-4510_B3_0001.0000.raw")
-rawfiles = [rawfile]
-DMVELA = 67.771
+# Parse command line.
+function parse_commandline()
+    aps = ArgParseSettings()
+    @add_arg_table! aps begin
+        "--dm", "-d"
+            help = "dispersion measure"
+            required = true
+            arg_type = Float64
+        "--fft", "-f"
+            help = "up-channelization FFT length"
+            default = 1
+            arg_type = Int
+        "--int", "-t"
+            help = "spectra to integrate"
+            default = 4
+            arg_type = Int
+        "--outdir", "-o"
+            help = "output directory"
+            arg_type = String
+            default = "."
+        "RAWFILES"
+            help = "GUPPI RAW files to process"
+            required = true
+            nargs = '+'
+            arg_type = String
+    end
+    return parse_args(aps, as_symbols=true)
+end # function parse_commandline
 
-# nfpc is Number of Fine channels Per Coarse channel (set to 1 to disable)
-# nint is the Number of consecutive fine spectra to INTegrate
-#nfpc, nint = 1, 4 # Desired production values
-nfpc, nint = 16, 64 # Test values
+function main()
+    args = parse_commandline()
 
-pipeline = create_pipeline(rawfiles, DMVELA; nfpc, nint)#, use_cuda=CUDA.functional())
+    rawfiles = args[:RAWFILES]
+    dm = args[:dm]
+    nfpc = args[:fft]
+    nint = args[:int]
+    outdir = args[:outdir]
 
-fbname = run_pipeline(pipeline, rawfiles; outdir=".")
-@info "saved output to $fbname"
-@info "done"
+    # Ensure all files exist
+    if any(!isfile, rawfiles)
+        error("some input files seem to be missing (or not files)")
+    end
+
+    # Ensure outdir exists
+    mkpath(outdir)
+
+    # Sort input file list
+    sort!(rawfiles)
+
+    pipeline = create_pipeline(rawfiles, dm; nfpc, nint)
+    fbname = run_pipeline(pipeline, rawfiles; outdir)
+
+    @info "saved output to $fbname"
+    @info "done"
+
+    return 0
+end
+
+main()
