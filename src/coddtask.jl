@@ -1,5 +1,5 @@
 function _coddtask(pqin, pqout; f0j, dfj, dm, codd_plan, upchan_plan,
-                   dostokes::Bool=true, doconj::Bool=dfj<0, doscale=true)
+                   dostokes::Bool=false, doconj::Bool=dfj<0, doscale=true)
     # While non-empty items keep coming in
     while true
         consume!(pqin) do item::NamedTuple

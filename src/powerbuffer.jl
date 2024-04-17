@@ -82,7 +82,7 @@ function sumdiff!(a::CuArray, b::CuArray;
 end
 
 function detect!(dst::CODDPowerBuffer, src::CODDVoltageBuffer;
-                 dostokes::Bool=true, doconj::Bool=false, doscale::Bool=true)
+                 dostokes::Bool=false, doconj::Bool=false, doscale::Bool=true)
     # Compute autos (with optional scaling by 127^2 to match rawspec)
     scaling = doscale ? 127f0^2 : 1f0
     foreach(zip(dst.autos4d, src.preints)) do (d,s)

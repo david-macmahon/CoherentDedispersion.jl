@@ -181,7 +181,7 @@ end
 
 function _create_tasks(pipeline::CODDPipelineCPU, blks;
                       fbname, fbheader, f0j, dfj, progress=false,
-                      dostokes::Bool=true,
+                      dostokes::Bool=false,
                       doconj::Bool=dfj<0,
                       doscale::Bool=true)
     dm   = pipeline.cpsz.dm
@@ -210,7 +210,7 @@ end
 
 function _create_tasks(pipeline::CODDPipelineGPU, blks;
                       fbname, fbheader, f0j, dfj, progress=false,
-                      dostokes::Bool=true,
+                      dostokes::Bool=false,
                       doconj::Bool=dfj<0,
                       doscale::Bool=true)
     dm   = pipeline.cpsz.dm
@@ -247,7 +247,7 @@ end
 
 function start_pipeline(pipeline, blks::AbstractVector{<:AbstractArray};
                         fbname, fbheader, f0j, dfj, progress=false,
-                        dostokes::Bool=true,
+                        dostokes::Bool=false,
                         doconj::Union{Nothing,Bool}=nothing,
                         doscale::Bool=true)
     tasks = _create_tasks(pipeline, blks; fbname, fbheader, f0j, dfj, progress,
@@ -264,7 +264,7 @@ end
 
 function start_pipeline(pipeline, rawfiles::AbstractVector{<:AbstractString};
                         outdir=".", progress=false,
-                        dostokes::Bool=true,
+                        dostokes::Bool=false,
                         doconj::Union{Nothing,Bool}=nothing,
                         doscale::Bool=true)
     dm   = pipeline.cpsz.dm
@@ -332,7 +332,7 @@ end
 # TODO Return empty String rather than nothing when tasks in empty?
 function run_pipeline(pipeline, blks::AbstractVector{<:AbstractArray};
                       fbname, fbheader, f0j, dfj, progress=true,
-                      dostokes::Bool=true,
+                      dostokes::Bool=false,
                       doconj::Union{Nothing,Bool}=nothing,
                       doscale::Bool=true)
     tasks = start_pipeline(pipeline, blks; fbname, fbheader, f0j, dfj,
@@ -344,7 +344,7 @@ end
 # TODO Return empty String rather than nothing when tasks in empty?
 function run_pipeline(pipeline, rawfiles::AbstractVector{<:AbstractString};
                       outdir=".", progress=true,
-                      dostokes::Bool=true,
+                      dostokes::Bool=false,
                       doconj::Union{Nothing,Bool}=nothing,
                       doscale::Bool=true)
     tasks = start_pipeline(pipeline, rawfiles; outdir, progress,

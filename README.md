@@ -1,9 +1,10 @@
 # CoherentDedispersion
 
-This package provides coherent dedispersion and full Stokes detection of radio
-telescope voltage data.  The input format is GUPPI RAW.  The output format is
-SIGPROC Filterbank.  This package can run with or without a CUDA-enabled GPU,
-but use with a CUDA-enabled GPU is recommended for higher throughput.
+This package provides coherent dedispersion and full cross-polarization or
+Stokes detection of radio telescope voltage data.  The input format is GUPPI
+RAW.  The output format is SIGPROC Filterbank.  This package can run with or
+without a CUDA-enabled GPU, but use with a CUDA-enabled GPU is recommended for
+higher throughput.
 
 # Reusable pipeline
 
@@ -77,8 +78,8 @@ Both `start_pipeline` and `run_pipeline` support additional keyword arguments
 that control the behavior of the detection process:
 
 * `dostokes` - `true`/`false` value indicating whether to compute Stokes
-               parameters (`true`, default) or cross polarization products
-               (`false`).
+               parameters (`true`) or cross polarization products (`false`,
+               default).
 * `doconj` - `true`/`false`/`nothing` value indicating whether to negate Stokes
              V/conjugate the cross polarization products (`true`
              negates/conjugates, `false` does not) or to negate/conjugate only
