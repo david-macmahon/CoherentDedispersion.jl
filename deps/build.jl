@@ -6,7 +6,7 @@ if haskey(ENV, "CODD_BINDIR")
         @info "replacing symlink $link -> $target"
         rm(link)
         symlink(target, link)
-    elseif !ifpath()
+    elseif !ispath()
         @info "creating symlink $link -> $target"
         symlink(target, link)
     else
