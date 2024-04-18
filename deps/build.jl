@@ -1,5 +1,5 @@
 if haskey(ENV, "CODD_BINDIR")
-    link = joinpath(ENV["CODD_BINDIR"], "rawcodd.foo")
+    link = joinpath(ENV["CODD_BINDIR"], "rawcodd.jl")
     target = joinpath(dirname(@__DIR__), "bin", "rawcodd.jl")
 
     if isfile(link)
