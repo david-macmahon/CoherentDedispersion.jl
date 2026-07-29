@@ -1,15 +1,13 @@
-#!/bin/bash
-#=
-export JULIA_PROJECT=$(dirname $(dirname $(readlink -e "${BASH_SOURCE[0]}")))
-exec julia --color=yes --startup-file=no --threads=auto \
-    -e 'include(popfirst!(ARGS))' "${BASH_SOURCE[0]}" "$@"
-=#
+module RawCODD
 
-using ArgParse, CoherentDedispersion
+using ArgParse
+using ..CoherentDedispersion
+
+export main
 
 # Parse command line.
 function parse_commandline()
-    aps = ArgParseSettings()
+    aps = ArgParseSettings(prog="rawcodd")
     @add_arg_table! aps begin
         "--dm", "-d"
             help = "dispersion measure"
@@ -65,4 +63,14 @@ function main()
     return 0
 end
 
-main()
+"""
+    (@main)(ARGS)
+
+App entry point for the `rawcodd` Julia app (see `[apps]` in `Project.toml`).
+Parses command line arguments and runs the dedispersion pipeline.
+"""
+function (@main)(ARGS)
+    exit(main())
+end
+
+end # module RawCODD

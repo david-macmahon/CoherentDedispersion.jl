@@ -38,6 +38,8 @@ include("outputtask.jl")
 include("guppifixup.jl")
 include("coddpipeline.jl")
 
+include("rawcodd_app.jl")
+
 """
     coddsynchronize(a)
 

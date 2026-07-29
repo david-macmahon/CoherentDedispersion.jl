@@ -8,43 +8,34 @@ higher throughput.
 
 # Installation
 
-This package and several of its dependent packages are not yet in the `General`
-Julia registry.  They are available in a separate publicly accessible registry.
-The easiest way to install this package is to add this registry to your Julia
-"depot":
+This package is not (yet) in the `General` Julia registry, so you must install
+it directly by URL.
+
+To install the `rawcodd` command line app (see [Command line
+interface](#command-line-interface)):
 
 ```bash
-$ julia -e 'using Pkg; Registry.add(RegistrySpec(url="https://github.com/david-macmahon/MyJuliaRegistry"))'
+$ julia -e 'import Pkg; Pkg.Apps.add(url="https://github.com/david-macmahon/CoherentDedispersion.jl")'
 ```
 
-After adding that registry, you can add the `CoherentDedispersion` package
-using:
+Installed apps are run from `~/.julia/bin`, which should be added to your
+`PATH`.
+
+To install the `CoherentDedispersion` package for programmatic use (see
+[Programmatic interface](#programmatic-interface)):
 
 ```bash
-$ julia -e 'import Pkg; Pkg.add("CoherentDedispersion")'
-```
-
-If you would like a symlink to this package's command line utility to be created
-in directory `/path/to/bin`, you can export the environment variable
-`CODD_BINDIR` before adding the package or by "building" if it has already been
-added:
-
-```bash
-env CODD_BINDIR="$HOME/bin" julia -e 'import Pkg; Pkg.build("CoherentDedispersion"; verbose=true)'
+$ julia -e 'import Pkg; Pkg.add(url="https://github.com/david-macmahon/CoherentDedispersion.jl")'
 ```
 
 # Command line interface
 
-This package include a bash script, `bin/rawcodd.jl` that provides a convenient
-command line interface.  Creating a symlink to the script (see above) in a
-directory in your path will allow you to run the script from anywhere without
-having to specify the path to it.
-
-Here is the command line help for `rawcodd.jl`:
+Once the `rawcodd` app is installed and on your `PATH` (see above), you can run
+the app from anywhere:
 
 ```bash
-$ rawcodd.jl --help
-usage: rawcodd.jl -d DM [-f FFT] [-t INT] [-o OUTDIR] [-h] RAWFILES...
+$ rawcodd --help
+usage: rawcodd -d DM [-f FFT] [-t INT] [-o OUTDIR] [-h] RAWFILES...
 
 positional arguments:
   RAWFILES             GUPPI RAW files to process
@@ -58,30 +49,38 @@ optional arguments:
   -h, --help           show this help message and exit
 ```
 
-Caveats:
+You can also run the app directly from a source checkout without installing it,
+using `julia -m`:
+
+```bash
+$ julia --startup-file=no --project=. -m CoherentDedispersion.RawCODD --help
+```
+
+## Caveats
 
 * All files given on the command line will be treated as a single sequence of
   contiguous GUPPI RAW files.  No checks are performed to verify that that is
   actually the case.  Be sure to specify GUPPI RAW files accordingly.
 
 * The list of file names will be sorted before being processed.  If you want to
-  process a list of files in unsorted order, use the package from within Julia
-  (see below).
+  process a list of files in unsorted order, use the package [programmatically
+  from within Julia](#programmatic-interface).
 
 * No checks are performed on the existence of the output file.  Existing output
   files will be silently overwritten.  If you want to save the output from the
   same data files with different options, be sure to use different output
   directories.
 
-* This script can only process one scan at a time.  Each time it runs, CUDA
+* This app can only process one scan at a time.  Each time it runs, CUDA
   initialization occurs, which imposes several seconds of delay.  If you have
   many similar scans to process with the same dispersion measure (DM), you may
-  want to consider using this package from within Julia to be able to amortize
-  the CUDA initialization over more scans.
+  want to consider using this package [programmatically from within Julia](
+  #programmatic-interface) to be able to amortize the CUDA initialization over
+  more scans.
 
 * Output directories will be created as needed.
 
-# Output filename
+## Output filename
 
 Currently the output filename is generated from `outdir` (defaults to `"."`) and
 the `basename` of the first filename given.  The `.raw` extension of the input
@@ -206,11 +205,11 @@ run_pipeline(pipeline, rawfiles; outdir=".", progress=false)
 ## Putting it all together
 
 Here is a short script that shows how to use `CoherentDedispersion` to
-dedisperse a list of GUPPI RAW files obtained from a not shown user-supplied
+dedisperse a list of GUPPI RAW files (obtained from a not shown user-supplied
 function) using a dispersion measure of `123.456`, up-channelizing by a factor
 of `16`, and integrating `128` time samples (i.e. up-channelized spectra) after
 detecting, and outputting a Filterbank file in the current directory.  This is
-essentially a simplified version of the `rawcodd.jl` command line interface.
+essentially a programatic version of the `rawcodd` command line interface.
 
 ```julia
 using CoherentDedispersion

@@ -1,7 +1,7 @@
 name = "CoherentDedispersion"
 uuid = "7080b7d2-8992-493a-ad79-22ab2a732ff5"
-authors = ["David MacMahon <davidm@astro.berkeley.edu> and contributors"]
 version = "0.8.1"
+authors = ["David MacMahon <davidm@astro.berkeley.edu> and contributors"]
 
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
@@ -13,7 +13,17 @@ PoolQueues = "da57cb61-2122-4cb9-bf56-fd6f75f7b468"
 ProgressBars = "49802e3a-d2f1-5c88-81d8-b72133a6f568"
 RadioInterferometry = "d7a65883-3b66-4fe4-a274-f0f417c4cddf"
 
+[sources]
+Blio = {rev = "main", url = "https://github.com/david-macmahon/Blio.jl"}
+PoolQueues = {rev = "main", url = "https://github.com/david-macmahon/PoolQueues.jl"}
+RadioInterferometry = {rev = "main", url = "https://github.com/david-macmahon/RadioInterferometry.jl"}
+
 [compat]
 Blio = "0.6.15,0.7"
 CUDA = "~5.8.4"
 PoolQueues = "0.4,0.5"
+
+[apps.rawcodd]
+julia_flags = ["--threads=auto"]
+submodule = "RawCODD"
+
