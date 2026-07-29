@@ -17,3 +17,10 @@ RadioInterferometry = "d7a65883-3b66-4fe4-a274-f0f417c4cddf"
 Blio = "0.6.15,0.7"
 CUDA = "~5.8.4"
 PoolQueues = "0.4,0.5"
+
+[apps]
+rawcodd = { submodule = "RawCODD", julia_flags = ["--threads=auto"] }
+
+[sources]
+Blio = { url = "https://github.com/david-macmahon/Blio.jl" }
+PoolQueues = { url = "https://github.com/david-macmahon/PoolQueues.jl.git" }
