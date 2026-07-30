@@ -27,6 +27,3 @@ julia = "1.11"
 [apps.rawcodd]
 julia_flags = ["--threads=auto"]
 submodule = "RawCODD"
-
-[extras]
-CUDA_Runtime_jll = "76a88914-d11a-5bdc-97e0-2f5a05c973a2"

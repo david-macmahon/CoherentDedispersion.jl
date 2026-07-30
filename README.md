@@ -231,17 +231,28 @@ fbname = run_pipeline(rawnames, dm)
 
 # CUDA runtime compatibility for legacy systems
 
-This package includes a `LocalPreferences.toml` file that specifies version 12.6
-of the CUDA runtime.  Version 12.6 is the last CUDA runtime version that
-supports Ubuntu 16.04 (more accurately, `libc` v2.23 ).  If you are using this
-package as a dependency of your own package and you want your package to be
-compatible with a system using `libc` v2.23 (e.g. Ubuntu 16.04), you will need
-to use a similar `LocalPreferences.toml` file and add an entry to the `[extras]`
-section of your `Project.toml` file.
+If you are running on an older operating system (e.g. Ubuntu 16.04) with an
+older `libc` version, you may see errors like ``version `GLIBC_2.27' not found``
+(or similar `GLIBC_` ``not found`` messages from other bundled libraries such as
+`libcudart.so`, `libcublasLt.so`, `libcurand.so`, or `libcusolver.so`) when
+pre-compiling.  These error occur when `CUDA.jl` attempts to load a
+`CUDA_Runtime_jll` artifact that was built against a newer `libc` than your
+system provides.
+
+To avoid this problem you can make the following changes to your default
+environment (e.g.  `~/.julia/environments/v1.12`) to force the selection of a
+runtime version that is compatible with your system's older `libc` version.
+This will apply to any package/project that uses `CUDA.jl` without specifying
+a different version in its own `LocalPreferences.toml`.
+
+Here is how to modify your default Julia 1.12 environment to select runtime
+version 12.6, which is the last CUDA runtime version that supports Ubuntu 16.04
+(glibc 2.23).  Adapt the version numbers as needed for your system.
 
 ## `Project.toml`:
 
-Ensure your `Project.toml` file contains these lines:
+Ensure your `~/.julia/environments/v1.12/Project.toml` file contains these
+lines:
 
 ```toml
 [extras]
@@ -250,13 +261,15 @@ CUDA_Runtime_jll = "76a88914-d11a-5bdc-97e0-2f5a05c973a2"
 
 ## `LocalPreferences.toml`
 
-Your `LocalPreferences.toml` file should be in the same folder as your
-`Project.toml` file.  Ensure it contains these lines:
+Ensure your `~/.julia/environments/v1.12/LocalPreferences.toml` file, which you
+may need to create, contains these lines:
 
 ```toml
 [CUDA_Runtime_jll]
 version = "12.6"
-
-[CUDA_Driver_jll]
-compat = "false"
 ```
+
+For more details, see the
+[Specifying the CUDA version](
+https://cuda.juliagpu.org/stable/installation/overview/#Specifying-the-CUDA-version)
+section of the `CUDA.jl` documentation.
