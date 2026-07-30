@@ -11,22 +11,27 @@ higher throughput.
 This package is not (yet) in the `General` Julia registry, so you must install
 it directly by URL.
 
-To install the `rawcodd` command line app (see [Command line
-interface](#command-line-interface)):
+## Installation as an app
+
+To install the `rawcodd` command line app (requires Julia v1.12 or higher):
 
 ```bash
 $ julia -e 'import Pkg; Pkg.Apps.add(url="https://github.com/david-macmahon/CoherentDedispersion.jl")'
 ```
 
 Installed apps are run from `~/.julia/bin`, which should be added to your
-`PATH`.
+`PATH`.  See [Command line interface](#command-line-interface) for usage.
 
-To install the `CoherentDedispersion` package for programmatic use (see
-[Programmatic interface](#programmatic-interface)):
+## Installation as a package
+
+To install the `CoherentDedispersion` package for programmatic use (requires
+Julia v1.11 or higher):
 
 ```bash
 $ julia -e 'import Pkg; Pkg.add(url="https://github.com/david-macmahon/CoherentDedispersion.jl")'
 ```
+
+See [Programmatic interface](#programmatic-interface) for more information.
 
 # Command line interface
 
@@ -222,4 +227,36 @@ fbname = run_pipeline(rawfiles, dm)
 
 @info "saved output to $fbname"
 @info "done"
+```
+
+# CUDA runtime compatibility for legacy systems
+
+This package includes a `LocalPreferences.toml` file that specifies version 12.6
+of the CUDA runtime.  Version 12.6 is the last CUDA runtime version that
+supports Ubuntu 16.04 (more accurately, `libc` v2.23 ).  If you are using this
+package as a dependency of your own package and you want your package to be
+compatible with a system using `libc` v2.23 (e.g. Ubuntu 16.04), you will need
+to use a similar `LocalPreferences.toml` file and add an entry to the `[extras]`
+section of your `Project.toml` file.
+
+## `Project.toml`:
+
+Ensure your `Project.toml` file contains these lines:
+
+```toml
+[extras]
+CUDA_Runtime_jll = "76a88914-d11a-5bdc-97e0-2f5a05c973a2"
+```
+
+## `LocalPreferences.toml`
+
+Your `LocalPreferences.toml` file should be in the same folder as your
+`Project.toml` file.  Ensure it contains these lines:
+
+```toml
+[CUDA_Runtime_jll]
+version = "12.6"
+
+[CUDA_Driver_jll]
+compat = "false"
 ```

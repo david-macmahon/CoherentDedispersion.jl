@@ -20,10 +20,13 @@ RadioInterferometry = {rev = "main", url = "https://github.com/david-macmahon/Ra
 
 [compat]
 Blio = "0.6.15,0.7"
-CUDA = "~5.8.4"
+CUDA = "5,6"
 PoolQueues = "0.4,0.5"
+julia = "1.11"
 
 [apps.rawcodd]
 julia_flags = ["--threads=auto"]
 submodule = "RawCODD"
 
+[extras]
+CUDA_Runtime_jll = "76a88914-d11a-5bdc-97e0-2f5a05c973a2"
