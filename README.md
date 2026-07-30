@@ -223,7 +223,7 @@ rawnames = your_function_to_get_list_of_raw_files()
 dm = 123.456
 
 pipeline = create_pipeline(rawfiles, dm; nfpc=16, nint=64)
-fbname = run_pipeline(rawfiles, dm)
+fbname = run_pipeline(rawnames, dm)
 
 @info "saved output to $fbname"
 @info "done"
