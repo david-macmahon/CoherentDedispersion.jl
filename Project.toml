@@ -1,6 +1,6 @@
 name = "CoherentDedispersion"
 uuid = "7080b7d2-8992-493a-ad79-22ab2a732ff5"
-version = "0.8.1"
+version = "0.9.0"
 authors = ["David MacMahon <davidm@astro.berkeley.edu> and contributors"]
 
 [deps]
